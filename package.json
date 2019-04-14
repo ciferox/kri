@@ -1,0 +1,25 @@
+{
+  "name": "kri",
+  "description": "Monadic primary form of ADONE core-realm",
+  "version": "0.0.1",
+  "author": "taaliman <smaxim@ciferox.com>",
+  "license": "Apache-2.0",
+  "homepage": "https://adone.io/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ciferox/kri.git"
+  },
+  "engines": {
+    "node": ">=10.15.3"
+  },
+  "bin": "bin/kri.js",
+  "main": "lib",
+  "devDependencies": {
+    "eslint": "latest",
+    "babel-eslint": "latest",
+    "eslint-plugin-adone": "latest",
+    "eslint-plugin-babel": "latest",
+    "eslint-plugin-import": "latest",
+    "eslint-plugin-flowtype": "latest"
+  }
+}

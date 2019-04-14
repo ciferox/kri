@@ -1,0 +1,31 @@
+{
+    "scheme":{
+        "app": {
+            "description": "Application",
+            "task": "transpileExe",
+            "src": "src/kri.js",
+            "dst": "bin"
+        },
+        "index": {
+            "description": "Common sources at index location",
+            "src": [
+                "!src/kri.js",
+                "src/*.js"
+            ],
+            "dst": "lib",
+            "task": "transpile"
+        },
+        "commands": {
+            "description": "Common CLI commands",
+            "task": "transpile",
+            "src": "src/commands/**/*.js",
+            "dst": "lib/commands"
+        },
+        "fs": {
+            "description": "Virtual file system",
+            "task": "transpile",
+            "src": "src/fs/**/*.js",
+            "dst": "lib/fs"
+        }
+    }
+}
