@@ -3,7 +3,8 @@ import "adone";
 const kri = adone.lazify({
     package: "../package.json",
     Configuration: "./configuration",
-    fs: "./fs"
+    fs: "./fs",
+    nodejs: "./nodejs"
 }, null, require);
 
 Object.defineProperty(global, "kri", {

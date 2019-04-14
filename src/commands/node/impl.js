@@ -5,12 +5,14 @@ const {
         Subsystem,
         command
     },
-    nodejs,
     semver,
     pretty,
     std
 } = adone;
 const { chalk, style, chalkify } = cli;
+
+const { nodejs } = kri;
+
 
 const activeStyle = chalkify("bold.underline.#388E3C", chalk);
 const cachedStyle = chalkify("#388E3C", chalk);
