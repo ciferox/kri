@@ -13,34 +13,6 @@ const {
 } = kri;
 const { NodejsManager, NodejsCompiler } = nodejs;
 
-// The 0-section is common and has a size of 64 bytes.
-// The content of the section starting at offset 16 should be interpreted
-// according to the version of EOF-data format.
-//
-// 0-section structure:
-//
-// description                    offset    size    value (default)
-// ------------------------------------------------------------------
-// signature                           0      12    'nodeadonekri'
-// version of EOF-data format         14       2    1
-// number of sections                 12       2    
-//
-// All other sections are data-sections and have header and body.
-//
-// header structure:
-//
-// description                    offset    size    value (default)
-// ------------------------------------------------------------------
-// body size                           0       8
-// flags                               0       8
-// fs mount point                      8    var0
-//
-//
-
-// Data-section flags
-const SECTION_FLAG_EP = 1 >>> 0; // Entry-point section (only one section can be an entry point)
-
-
 const DEFAULT_CONFIGURE_FLAGS = new Set([
     `--dest-cpu=${process.arch}`,
     "--fully-static",
@@ -113,7 +85,9 @@ export default class NodejsPackager extends task.TaskManager {
             _third_party_main = await fs.readFile(path.resolve(this.options.easy), { encoding: "utf8" });
         } else {
             // default
-            _third_party_main = "";
+            _third_party_main = await this.runAndWait("generateLoader", {
+                cwd: this.cwd
+            });
         }
 
         await this.#writeFile({
@@ -149,7 +123,7 @@ export default class NodejsPackager extends task.TaskManager {
             reconfigured = true;
         }
 
-        if (this.options.forceBuild || reconfigured || !(await fs.exists(join(this.cwd, NODE_BIN_PATH)))) {
+        if (this.options.forceBuild || reconfigured || !(await fs.exists(path.join(this.cwd, NODE_BIN_PATH)))) {
             this.log({
                 message: "building Node.js"
             });
@@ -179,7 +153,7 @@ export default class NodejsPackager extends task.TaskManager {
             ...options,
             cwd: this.cwd,
             backupPath: this.backupPath
-        })
+        });
     }
 
     async #prepareSources() {

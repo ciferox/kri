@@ -93,7 +93,7 @@ export default class PackageCommand extends Subsystem {
             cli.updateProgress({
                 message: err.message,
                 status: false,
-                clean: true
+                // clean: true
             });
             // console.log(adone.pretty.error(err));
             return 1;

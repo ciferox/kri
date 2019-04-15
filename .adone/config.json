@@ -1,5 +1,8 @@
 {
-    "scheme":{
+    "tasks": {
+        "basePath": "lib/tasks"
+    },
+    "scheme": {
         "app": {
             "description": "Application",
             "task": "transpileExe",
@@ -32,6 +35,12 @@
             "task": "transpile",
             "src": "src/nodejs/**/*.js",
             "dst": "lib/nodejs"
+        },
+        "tasks": {
+            "description": "Realm tasks",
+            "src": "src/tasks/**/*.js",
+            "dst": "lib/tasks",
+            "task": "transpile"
         }
     }
 }

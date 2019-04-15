@@ -15,6 +15,5 @@ export default class PatchFile extends IsomorphicTask {
             ...options,
             disableGlobs: true
         });
-        // console.log("3");
     }
 }

@@ -1,6 +1,7 @@
 import "adone";
 
 const kri = {
+    ROOT_PATH: adone.std.path.join(__dirname, ".."),
     HOME_PATH: adone.std.path.join(adone.system.env.home(), ".kri")
 };
 

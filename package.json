@@ -20,6 +20,8 @@
     "eslint-plugin-adone": "latest",
     "eslint-plugin-babel": "latest",
     "eslint-plugin-import": "latest",
-    "eslint-plugin-flowtype": "latest"
+    "eslint-plugin-flowtype": "latest",
+    "rollup": "latest",
+    "rollup-plugin-cleanup": "latest"
   }
 }
