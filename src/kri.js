@@ -29,6 +29,12 @@ const command = (...args) => std.path.join(__dirname, "..", "lib", "commands", .
             subsystem: command("node")
         },
         {
+            name: "package",
+            group: "common",
+            description: "Manage executable packages",
+            subsystem: command("package")
+        },
+        {
             name: "realm",
             group: "common",
             description: "Realm management",
@@ -116,5 +122,6 @@ class KRI extends app.Application {
 }
 
 app.run(KRI, {
-    useArgs: true
+    useArgs: true,
+    version: kri.package.version
 });

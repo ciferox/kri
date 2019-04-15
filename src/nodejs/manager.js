@@ -26,7 +26,7 @@ export default class NodejsManager {
     constructor({ cache } = {}) {
         this.cache = cache || {};
         if (!this.cache.basePath) {
-            this.cache.basePath = std.path.join(system.env.home(), ".anodejs_cache");
+            this.cache.basePath = std.path.join(kri.HOME_PATH, "nodejs_cache");
         }
         this.cache.download = this.cache.download || "download";
         this.cache.release = this.cache.release || "release";

@@ -1,11 +1,15 @@
 import "adone";
 
-const kri = adone.lazify({
+const kri = {
+    HOME_PATH: adone.std.path.join(adone.system.env.home(), ".kri")
+};
+
+adone.lazify({
     package: "../package.json",
     Configuration: "./configuration",
     fs: "./fs",
     nodejs: "./nodejs"
-}, null, require);
+}, kri, require);
 
 Object.defineProperty(global, "kri", {
     enumerable: true,

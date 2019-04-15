@@ -96,7 +96,7 @@ describe("nodejs", () => {
             const nm = new nodejs.NodejsManager();
 
             assert.deepEqual(nm.cache, {
-                basePath: path.join(system.env.home(), ".anodejs_cache"),
+                basePath: path.join(kri.HOME_PATH, "nodejs_cache"),
                 download: "download",
                 release: "release",
                 sources: "sources",

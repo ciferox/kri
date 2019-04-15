@@ -135,10 +135,8 @@ export default class Configuration extends adone.configuration.Generic {
     }
 
     static async load() {
-        const cwd = std.path.join(adone.system.env.home(), ".kri");
-
         const config = new Configuration({
-            cwd
+            cwd: kri.HOME_PATH
         });
 
         if (await adone.fs.exists(config.getPath())) {
