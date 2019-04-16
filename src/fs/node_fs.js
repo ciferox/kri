@@ -12,18 +12,18 @@ let fs = new FS();
 
 const _fsMock = {};
 Object.getOwnPropertyNames(FS.prototype).forEach((key) => {
-    if (typeof fs[key] === "function") {
-        _fsMock[key] = function () {
-            return fs[key].apply(fs, arguments);
+    if (typeof fs[key] === "function" && key !== "constructor") {
+        _fsMock[key] = (...args) => {
+            return fs[key].apply(fs, args);
         };
     } else {
         _fsMock[key] = fs[key];
     }
 });
-_fsMock.changeFSModule = function (newFs) {
+_fsMock.changeFSModule = (newFs) => {
     fs = newFs;
 };
-_fsMock.getFSModule = function () {
+_fsMock.getFSModule = () => {
     return fs;
 };
 _fsMock.FS = FS;

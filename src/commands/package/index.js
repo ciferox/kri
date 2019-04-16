@@ -1,5 +1,6 @@
 const {
     cli,
+    is,
     app: {
         Subsystem,
         command
@@ -17,9 +18,28 @@ export default class PackageCommand extends Subsystem {
     @command({
         name: "create",
         description: "Create package",
+        arguments: [
+            {
+                name: "input",
+                type: String,
+                required: true,
+                description: "Path to application script/realm or 'self' for self-packaging"
+            }
+        ],
         options: [
             {
-                name: "--version",
+                name: ["--out", "-O"],
+                type: String,
+                default: process.cwd(),
+                description: "Package output path"
+            },
+            {
+                name: ["--name", "-N"],
+                type: String,
+                description: "Package output name (default: basename of the input file)"
+            },
+            {
+                name: ["--version", "-V"],
                 type: String,
                 default: "latest",
                 description: "Node.js version ('latest', 'latest-lts', '11.0.0', 'v10.15.3', ...)"
@@ -47,16 +67,18 @@ export default class PackageCommand extends Subsystem {
             },
             {
                 name: "--easy",
-                type: String,
-                default: null,
-                description: "Path to single-file bundle as entry point"
+                description: "Interpret 'input' as bootstraper (not compatible with 'self' case)"
+            },
+            {
+                name: "--verbose",
+                description: "Show details"
             }
         ]
     })
     async create(args, opts) {
         try {
             const packager = new nodejs.NodejsPackager({
-                make: ["-j8"],
+                input: args.get("input"),
                 ...opts.getAll(),
                 manager: this.nodejsManager,
                 log: (options) => {
@@ -67,10 +89,9 @@ export default class PackageCommand extends Subsystem {
                         });
                         console.error(options.stderr);
                     } else if (options.stdout) {
-                        cli.updateProgress({
-                            status: true,
-                            clean: true
-                        });
+                        if (!is.undefined(options.status) && !is.undefined(options.clean)) {
+                            cli.updateProgress(options);
+                        }
                         console.log(options.stdout);
                     } else {
                         cli.updateProgress(options);
@@ -93,9 +114,9 @@ export default class PackageCommand extends Subsystem {
             cli.updateProgress({
                 message: err.message,
                 status: false,
-                // clean: true
+                clean: true
             });
-            // console.log(adone.pretty.error(err));
+            console.log(adone.pretty.error(err));
             return 1;
         }
     }

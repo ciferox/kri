@@ -160,7 +160,8 @@ describe("nodejs", () => {
             assert.isTrue(await fs.isDirectory(p));
         });
 
-        describe("donwload", () => {
+        describe("donwload", function () {
+            this.timeout(100 * 1000);
             it("by default should download latest release for current system", async () => {
                 const nm = await createManager();
 

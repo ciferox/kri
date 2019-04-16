@@ -7,13 +7,15 @@ const {
 @task("patchFile")
 export default class PatchFile extends IsomorphicTask {
     async main(options) {
-        if (options.once && await exists(join(options.backupPath, options.files))) {
+        if (options.once && await exists(join(this.manager.backupPath, options.files))) {
             return;
         }
 
         await replaceInFile({
             ...options,
-            disableGlobs: true
+            disableGlobs: true,
+            cwd: this.manager.cwd,
+            backupPath: this.manager.backupPath
         });
     }
 }

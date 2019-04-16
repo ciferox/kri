@@ -3,6 +3,12 @@
         "basePath": "lib/tasks"
     },
     "scheme": {
+        "jsassets": {
+            "description": "JavaScript Assets",
+            "task": "copy",
+            "src": "src/**/*.asset.js",
+            "dst": "lib"
+        },
         "app": {
             "description": "Application",
             "task": "transpileExe",
@@ -31,9 +37,12 @@
             "dst": "lib/fs"
         },
         "nodejs": {
-            "description": "Tools for managing of Node.js",
+            "description": "Framework for managing of Node.js",
             "task": "transpile",
-            "src": "src/nodejs/**/*.js",
+            "src": [
+                "src/nodejs/**/*.js",
+                "!src/nodejs/packager/tasks/generate_bootstraper/bootstrap.asset.js"
+            ],
             "dst": "lib/nodejs"
         },
         "tasks": {

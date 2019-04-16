@@ -99,7 +99,7 @@ export default class NodejsManager {
         } else if (progressBar === true) {
             progressBar = new adone.cli.Progress({
                 clean: true,
-                schema: `downloading ${adone.cli.style.primary(version)} [:bar] :current/:total :percent`
+                schema: "[:bar] :current/:total :percent"
             });
             progressBar.update(0);
         }

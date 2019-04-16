@@ -174,7 +174,7 @@ export default () => class NodeCommand extends Subsystem {
             const version = await nodejs.checkVersion(args.get("version"));
 
             cli.updateProgress({
-                message: "waiting"
+                message: `downloading Node.js ${style.accent(version)}`
             });
 
             const result = await this.nodejsManager.download({
@@ -185,12 +185,12 @@ export default () => class NodeCommand extends Subsystem {
 
             if (result.downloaded) {
                 cli.updateProgress({
-                    message: `Saved to ${style.accent(result.path)}`,
+                    message: `saved to ${style.accent(result.path)}`,
                     status: true
                 });
             } else {
                 cli.updateProgress({
-                    message: `Already downloaded: ${style.accent(result.path)}`,
+                    message: `already downloaded: ${style.accent(result.path)}`,
                     status: true
                 });
             }
