@@ -682,19 +682,9 @@ export default class ZipFS extends SynchronousFileSystem {
     /**
      * Constructs a ZipFS instance with the given options.
      */
-    static Create(opts, cb) {
-        try {
-            ZipFS._computeIndex(opts.zipData, (e, zipTOC) => {
-                if (zipTOC) {
-                    const fs = new ZipFS(zipTOC, opts.name);
-                    cb(null, fs);
-                } else {
-                    cb(e);
-                }
-            });
-        } catch (e) {
-            cb(e);
-        }
+    static create(opts) {
+        const zipTOC = ZipFS._computeIndex(opts.zipData);
+        return new ZipFS(zipTOC, opts.name);
     }
 
     static isAvailable() {
@@ -747,33 +737,21 @@ export default class ZipFS extends SynchronousFileSystem {
         }
     }
 
-    static _computeIndex(data, cb) {
-        try {
-            const index = new FileIndex();
-            const eocd = ZipFS._getEOCD(data);
-            if (eocd.diskNumber() !== eocd.cdDiskNumber()) {
-                return cb(new ApiError(ErrorCode.EINVAL, "ZipFS does not support spanned zip files."));
-            }
-            const cdPtr = eocd.cdOffset();
-            if (cdPtr === 0xFFFFFFFF) {
-                return cb(new ApiError(ErrorCode.EINVAL, "ZipFS does not support Zip64."));
-            }
-            const cdEnd = cdPtr + eocd.cdSize();
-            ZipFS._computeIndexResponsive(data, index, cdPtr, cdEnd, cb, [], eocd);
-        } catch (e) {
-            cb(e);
+    static _computeIndex(data) {
+        const index = new FileIndex();
+        const eocd = ZipFS._getEOCD(data);
+        if (eocd.diskNumber() !== eocd.cdDiskNumber()) {
+            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support spanned zip files.");
         }
+        const cdPtr = eocd.cdOffset();
+        if (cdPtr === 0xFFFFFFFF) {
+            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support Zip64.");
+        }
+        const cdEnd = cdPtr + eocd.cdSize();
+        return ZipFS._computeIndexResponsive(data, index, cdPtr, cdEnd, [], eocd);
     }
 
-    static _computeIndexResponsiveTrampoline(data, index, cdPtr, cdEnd, cb, cdEntries, eocd) {
-        try {
-            ZipFS._computeIndexResponsive(data, index, cdPtr, cdEnd, cb, cdEntries, eocd);
-        } catch (e) {
-            cb(e);
-        }
-    }
-
-    static _computeIndexResponsive(data, index, cdPtr, cdEnd, cb, cdEntries, eocd) {
+    static _computeIndexResponsive(data, index, cdPtr, cdEnd, cdEntries, eocd) {
         if (cdPtr < cdEnd) {
             let count = 0;
             while (count++ < 200 && cdPtr < cdEnd) {
@@ -782,12 +760,9 @@ export default class ZipFS extends SynchronousFileSystem {
                 cdPtr += cd.totalSize();
                 cdEntries.push(cd);
             }
-            setImmediate(() => {
-                ZipFS._computeIndexResponsiveTrampoline(data, index, cdPtr, cdEnd, cb, cdEntries, eocd);
-            });
-        } else {
-            cb(null, new ZipTOC(index, cdEntries, eocd, data));
+            return ZipFS._computeIndexResponsive(data, index, cdPtr, cdEnd, cdEntries, eocd);
         }
+        return new ZipTOC(index, cdEntries, eocd, data);
     }
 
     getName() {

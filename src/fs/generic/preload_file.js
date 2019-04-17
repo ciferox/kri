@@ -3,7 +3,7 @@
 import { BaseFile } from "../file";
 import Stats from "../node_fs_stats";
 import { ApiError, ErrorCode } from "../api_error";
-import fs from "../node_fs";
+import fs from "../index";
 import { emptyBuffer } from "../util";
 /**
  * An implementation of the File interface that operates on a file that is

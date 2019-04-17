@@ -85,7 +85,7 @@ export default class NodejsPackager extends task.TaskManager {
         await this.#patchFiles();
 
         // 4.
-        await this.#generateBootstraper();
+        await this.#buildLoader();
 
         // 5.
         await this.#configureAndBuildSources()
@@ -98,302 +98,313 @@ export default class NodejsPackager extends task.TaskManager {
     }
 
     async #initialize() {
-    if (this.options.easy && this.options.input === "self") {
-        throw new error.NotAllowedException("Self-packaging is not allowed in easy mode");
-    }
-
-    if (this.options.input === "self") {
-        this.options.input = kri.ROOT_PATH;
-    }
-    this.options.input = path.resolve(this.options.input);
-
-    this.verbose = Boolean(this.options.verbose);
-
-    const { input } = this.options;
-
-    const lstat = await fs.lstat(input);
-    if (lstat.isDirectory()) {
-        // Check realm
-        const mainRealm = new realm.RealmManager({
-            cwd: input
-        });
-
-        await mainRealm.connect();
-
-        try {
-            this.kriConfig = adone.require(mainRealm.getPath(".adone", "kri"));
-            if (this.kriConfig.default) {
-                this.kriConfig = this.kriConfig.default;
-            }
-        } catch (err) {
-            //
+        if (this.options.easy && this.options.input === "self") {
+            throw new error.NotAllowedException("Self-packaging is not allowed in easy mode");
         }
+
+        if (this.options.input === "self") {
+            this.options.input = kri.ROOT_PATH;
+        }
+        this.options.input = path.resolve(this.options.input);
+
+        this.verbose = Boolean(this.options.verbose);
+
+        const { input } = this.options;
+
+        const lstat = await fs.lstat(input);
+        if (lstat.isDirectory()) {
+            // Check realm
+            const mainRealm = new realm.RealmManager({
+                cwd: input
+            });
+
+            await mainRealm.connect();
+
+            try {
+                this.kriConfig = adone.require(mainRealm.getPath(".adone", "kri"));
+                if (this.kriConfig.default) {
+                    this.kriConfig = this.kriConfig.default;
+                }
+            } catch (err) {
+                //
+            }
+        }
+
+        // load tasks
+        await this.loadTasksFrom(path.join(__dirname, "tasks"), {
+            transpile: false
+        });
     }
 
-    // load tasks
-    await this.loadTasksFrom(path.join(__dirname, "tasks"), {
-        transpile: false
-    });
-}
-
-async #checkNodejsVersion() {
-    this.log({
-        message: "checking version"
-    });
-    this.version = await nodejs.checkVersion(this.version);
-
-    // TODO: Check minimum supported version
-
-    this.log({
-        stdout: `Node.js version: ${style.primary(this.version)}`,
-        status: true,
-        clean: true
-    });
-}
-
-async #prepareSources() {
-    const version = this.version;
-    const type = "sources";
-
-    let sourcesPath = await this.manager.getCachePathFor(this.manager.cache.sources, { version, type, ext: "" });
-    if (this.options.fresh) {
+    async #checkNodejsVersion() {
         this.log({
-            message: `deleting old files ${style.focus("(--fresh mode)")}`
-        })
-        await fs.rm(sourcesPath);
+            message: "checking version"
+        });
+        this.version = await nodejs.checkVersion(this.version);
+
+        // TODO: Check minimum supported version
+
         this.log({
-            message: `old files deleted ${style.focus("(--fresh mode)")}`,
-            status: true
-        })
+            stdout: `Node.js version: ${style.primary(this.version)}`,
+            status: true,
+            clean: true
+        });
     }
-    if (!(await fs.exists(sourcesPath))) {
-        sourcesPath = await this.manager.getCachePathFor(this.manager.cache.download, { version, type });
+
+    async #prepareSources() {
+        const version = this.version;
+        const type = "sources";
+
+        let sourcesPath = await this.manager.getCachePathFor(this.manager.cache.sources, { version, type, ext: "" });
         if (this.options.fresh) {
+            this.log({
+                message: `deleting old files ${style.focus("(--fresh mode)")}`
+            })
             await fs.rm(sourcesPath);
+            this.log({
+                message: `old files deleted ${style.focus("(--fresh mode)")}`,
+                status: true
+            })
         }
         if (!(await fs.exists(sourcesPath))) {
-            this.log({
-                message: `downloading Node.js ${style.primary(this.version)}`
-            });
+            sourcesPath = await this.manager.getCachePathFor(this.manager.cache.download, { version, type });
+            if (this.options.fresh) {
+                await fs.rm(sourcesPath);
+            }
+            if (!(await fs.exists(sourcesPath))) {
+                this.log({
+                    message: `downloading Node.js ${style.primary(this.version)}`
+                });
 
-            await this.manager.download({
+                await this.manager.download({
+                    version,
+                    type,
+                    progressBar: true
+                });
+
+                this.log({
+                    message: `Node.js ${style.primary(this.version)} sources successfully downloaded`,
+                    status: true
+                });
+            }
+
+            this.log({
+                message: "extracting Node.js sources"
+            });
+            sourcesPath = await this.manager.extract({
                 version,
-                type,
-                progressBar: true
+                type
             });
-
             this.log({
-                message: `Node.js ${style.primary(this.version)} sources successfully downloaded`,
+                message: "Node.js sources successfully extracted",
                 status: true
             });
         }
 
-        this.log({
-            message: "extracting Node.js sources"
+        this.privatePath = path.join(sourcesPath, ".kri");
+        this.backupPath = path.join(this.privatePath, "backup");
+        await fs.mkdirp(this.privatePath);
+
+        this.statusfile = new StatusFile({
+            cwd: this.privatePath
         });
-        sourcesPath = await this.manager.extract({
-            version,
-            type
-        });
+
+        await this.statusfile.update();
+
+        this.cwd = sourcesPath;
+    }
+
+    async #patchFiles() {
         this.log({
-            message: "Node.js sources successfully extracted",
+            message: "patching Node.js sources"
+        });
+
+        await this.runAndWait("patchFile", {
+            files: "src/node.cc",
+            from: /(?<!int ) = ProcessGlobalArgs\(/g,
+            to: " = 0;//ProcessGlobalArgs("
+        });
+
+        await this.runAndWait("patchFile", {
+            files: "node.gyp",
+            from: "    'library_files': [",
+            to: [
+                "    'library_files': [",
+                "      'lib/_third_party_main',"
+            ].join("\n"),
+            once: true
+        });
+
+        await this.runAndWait("patchFile", {
+            files: "lib/internal/bootstrap/node.js",
+            from: "process._exiting = false;",
+            to: [
+                "process._exiting = false;",
+                "",
+                await fs.readFile(path.join(__dirname, "assets", "bootstrap.js"), "utf8")
+            ].join("\n"),
+            once: true
+        });
+
+        this.log({
+            message: "Node.js sources successfully patched",
             status: true
         });
     }
 
-    this.privatePath = path.join(sourcesPath, ".kri");
-    this.backupPath = path.join(this.privatePath, "backup");
-    await fs.mkdirp(this.privatePath);
+    async #buildLoader() {
+        this.log({
+            message: "building loader"
+        });
 
-    this.statusfile = new StatusFile({
-        cwd: this.privatePath
-    });
+        // Prepare _third_party_main
+        let _third_party_main;
+        if (is.string(this.options.easy)) {
+            _third_party_main = await fs.readFile(path.resolve(this.options.easy), { encoding: "utf8" });
+        } else {
+            // default
+            _third_party_main = await this.runAndWait("buildLoader", {
+                cwd: this.cwd,
+                path: path.join(__dirname, "assets", "loader.js")
+            });
+        }
 
-    await this.statusfile.update();
+        await this.#writeFile({
+            file: "lib/_third_party_main",
+            content: _third_party_main
+        });
 
-    this.cwd = sourcesPath;
-}
+        this.log({
+            message: "loader successfully builded",
+            status: true
+        });
+    }
 
-async #patchFiles() {
-    this.log({
-        message: "patching Node.js sources"
-    });
-
-    // Patch some files
-    await this.runAndWait("patchFile", {
-        files: "src/node.cc",
-        from: /(?<!int ) = ProcessGlobalArgs\(/g,
-        to: " = 0;//ProcessGlobalArgs("
-    });
-
-    await this.runAndWait("patchFile", {
-        files: "node.gyp",
-        from: "    'library_files': [",
-        to: [
-            "    'library_files': [",
-            "      'lib/_third_party_main',"
-        ].join("\n"),
-        once: true
-    });
-
-    this.log({
-        message: "Node.js sources successfully patched",
-        status: true
-    });
-}
-
-async #generateBootstraper() {
-    this.log({
-        message: "generating bootstraper"
-    });
-
-    // Prepare _third_party_main
-    let _third_party_main;
-    if (is.string(this.options.easy)) {
-        _third_party_main = await fs.readFile(path.resolve(this.options.easy), { encoding: "utf8" });
-    } else {
-        // default
-        _third_party_main = await this.runAndWait("generateBootstraper", {
+    async #configureAndBuildSources() {
+        const compiler = new NodejsCompiler({
             cwd: this.cwd
         });
-    }
 
-    await this.#writeFile({
-        file: "lib/_third_party_main",
-        content: _third_party_main
-    });
-
-    this.log({
-        message: "bootstraper successfully generated",
-        status: true
-    });
-}
-
-async #configureAndBuildSources() {
-    const compiler = new NodejsCompiler({
-        cwd: this.cwd
-    });
-
-    let reconfigured = false;
-    const newConfigureArgs = useFlags(DEFAULT_CONFIGURE_FLAGS, this.kriConfig.configure, this.options.configure);
-    this.verbose && this.log({
-        stdout: `Node.js configure flags: ${style.accent(newConfigureArgs.join(" "))}`
-    });
-
-    this.log({
-        message: "configuring Node.js build system"
-    });
-
-    if (this.options.forceConfigure || !is.deepEqual(this.statusfile.get("configure"), newConfigureArgs)) {
-        const configureResult = await compiler.configure({
-            flags: newConfigureArgs
-        });
-
-        if (configureResult.code !== 0) {
-            this.log({
-                stderr: configureResult.stderr
-            });
-            return;
-        }
-
-        await this.statusfile.update({
-            configure: newConfigureArgs
-        });
-        reconfigured = true;
-    }
-
-    this.log({
-        message: "Node.js build system successfully configured",
-        status: true
-    });
-
-    if (this.options.forceBuild || reconfigured || !(await fs.exists(path.join(this.cwd, NODE_BIN_PATH)))) {
-        const newMakeArgs = useFlags(DEFAULT_MAKE_FLAGS, this.kriConfig.make, this.options.make);
+        let reconfigured = false;
+        const newConfigureArgs = useFlags(DEFAULT_CONFIGURE_FLAGS, this.kriConfig.configure, this.options.configure);
         this.verbose && this.log({
-            stdout: `Node.js make flags: ${style.accent(newMakeArgs.join(" "))}`
+            stdout: `Node.js configure flags: ${style.accent(newConfigureArgs.join(" "))}`
         });
 
         this.log({
-            message: "building Node.js"
+            message: "configuring Node.js build system"
         });
 
-        const buildResult = await compiler.build(newMakeArgs);
-
-        if (buildResult.code !== 0) {
-            this.log({
-                stderr: buildResult.stderr
+        if (this.options.forceConfigure || !is.deepEqual(this.statusfile.get("configure"), newConfigureArgs)) {
+            const configureResult = await compiler.configure({
+                flags: newConfigureArgs
             });
-            return;
+
+            if (configureResult.code !== 0) {
+                this.log({
+                    stderr: configureResult.stderr
+                });
+                return;
+            }
+
+            await this.statusfile.update({
+                configure: newConfigureArgs
+            });
+            reconfigured = true;
         }
 
-        await this.statusfile.update({
-            make: newMakeArgs
-        });
-
         this.log({
-            message: "Node.js successfully builded",
+            message: "Node.js build system successfully configured",
             status: true
         });
+
+        if (this.options.forceBuild || reconfigured || !(await fs.exists(path.join(this.cwd, NODE_BIN_PATH)))) {
+            const newMakeArgs = useFlags(DEFAULT_MAKE_FLAGS, this.kriConfig.make, this.options.make);
+            this.verbose && this.log({
+                stdout: `Node.js make flags: ${style.accent(newMakeArgs.join(" "))}`
+            });
+
+            this.log({
+                message: "building Node.js"
+            });
+
+            const buildResult = await compiler.build(newMakeArgs);
+
+            if (buildResult.code !== 0) {
+                this.log({
+                    stderr: buildResult.stderr
+                });
+                return;
+            }
+
+            await this.statusfile.update({
+                make: newMakeArgs
+            });
+
+            this.log({
+                message: "Node.js successfully builded",
+                status: true
+            });
+        }
     }
-}
 
-async #buildEof() {
-    const eofBuilder = new EOFBuilder();
+    async #buildEof() {
+        const eofBuilder = new EOFBuilder();
 
-    const tmpPath = await fs.tmpName();
+        const tmpPath = await fs.tmpName();
 
-    const { input } = this.options;
+        const { input } = this.options;
 
-    if (await fs.isDirectory(input)) {
-        // realm
-    } else {
-        // script
-        await fast.src(input)
-            .rename("index.js")
-            .pack("zip", "app.zip")
-            .dest(tmpPath);
+        if (await fs.isDirectory(input)) {
+            // realm
+        } else {
+            // script
+            await fast.src(input)
+                .rename("index.js")
+                .pack("zip", "app.zip")
+                .dest(tmpPath);
 
-        await eofBuilder.addVolume({
-            name: "app",
-            volume: path.join(tmpPath, "app.zip"),
-            index: "index.js",
-            startup: true
+            await eofBuilder.addVolume({
+                name: "app",
+                volume: path.join(tmpPath, "app.zip"),
+                index: "index.js",
+                startup: true
+            });
+        }
+
+        await fs.rm(tmpPath);
+
+        eofBuilder.build();
+        this.eof = eofBuilder;
+    }
+
+    async #profit() {
+        let outName;
+        if (is.string(this.options.nane)) {
+            outName = this.options.nane;
+        } else {
+            outName = path.basename(this.options.input, path.extname(this.options.input));
+        }
+
+        const nodeBinPath = path.join(this.cwd, "out", "Release", "node");
+        const outPath = path.resolve(this.options.out, outName);
+        await fs.mkdirp(path.dirname(outPath));
+
+        await new Promise((resolve, reject) => {
+            const ms = new MultiStream([
+                fs.createReadStream(nodeBinPath),
+                this.eof.toStream()
+            ])
+                .pipe(fs.createWriteStream(path.resolve(this.options.out, outName)))
+                .on("error", reject)
+                .on("close", resolve);
         });
+
+        const mode = await fs.statSync(nodeBinPath).mode;
+        await fs.chmod(outPath, mode.toString(8).slice(-3));
     }
 
-    await fs.rm(tmpPath);
-
-    eofBuilder.build();
-    this.eof = eofBuilder;
-}
-
-async #profit() {
-    let outName;
-    if (is.string(this.options.nane)) {
-        outName = this.options.nane;
-    } else {
-        outName = path.basename(this.options.input, path.extname(this.options.input));
+    #writeFile({ file, content, encoding = "utf8" } = {}) {
+        return fs.writeFile(path.join(this.cwd, file), content, encoding);
     }
-
-    const nodeBinPath = path.join(this.cwd, "out", "Release", "node");
-    const outPath = path.resolve(this.options.out, outName);
-    await fs.mkdirp(path.dirname(outPath));
-
-    await new Promise((resolve, reject) => {
-        const ms = new MultiStream([
-            fs.createReadStream(nodeBinPath),
-            this.eof.toStream()
-        ])
-            .pipe(fs.createWriteStream(path.resolve(this.options.out, outName)))
-            .on("error", reject)
-            .on("close", resolve);
-    });
-
-    const mode = await fs.statSync(nodeBinPath).mode;
-    await fs.chmod(outPath, mode.toString(8).slice(-3));
-}
-
-#writeFile({ file, content, encoding = "utf8" } = {}) {
-    return fs.writeFile(path.join(this.cwd, file), content, encoding);
-}
 }

@@ -28,10 +28,6 @@ function getFlag(f) {
  * Overlays a RO file to make it writable.
  */
 class OverlayFile extends PreloadFile {
-    constructor(fs, path, flag, stats, data) {
-        super(fs, path, flag, stats, data);
-    }
-
     sync(cb) {
         if (!this.isDirty()) {
             cb(null);

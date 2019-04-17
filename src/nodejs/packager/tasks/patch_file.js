@@ -1,7 +1,8 @@
 const {
-    fs: { replaceInFile, exists },
+    fs: { replaceInFile, exists, readFile },
     task: { IsomorphicTask, task },
-    std: { path: { join } }
+    std: { path: { join } },
+    util: { arrify }
 } = adone;
 
 @task("patchFile")

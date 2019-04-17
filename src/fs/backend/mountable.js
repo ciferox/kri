@@ -1,9 +1,9 @@
 /* eslint-disable adone/no-null-comp */
 /* eslint-disable func-style */
 import { BaseFileSystem } from "../file_system";
-import InMemoryFileSystem from "./memory"
+import InMemoryFileSystem from "./memory";
 import { ApiError, ErrorCode } from "../api_error";
-import fs from "../node_fs";
+import fs from "../index";
 import * as path from "path";
 import { mkdirpSync } from "../util";
 /**
@@ -67,22 +67,15 @@ export default class MountableFileSystem extends BaseFileSystem {
     /**
      * Creates a MountableFileSystem instance with the given options.
      */
-    static Create(opts, cb) {
-        InMemoryFileSystem.Create({}, (e, imfs) => {
-            if (imfs) {
-                const fs = new MountableFileSystem(imfs);
-                try {
-                    Object.keys(opts).forEach((mountPoint) => {
-                        fs.mount(mountPoint, opts[mountPoint]);
-                    });
-                } catch (e) {
-                    return cb(e);
-                }
-                cb(null, fs);
-            } else {
-                cb(e);
-            }
-        });
+    static create(opts) {
+        const imfs = InMemoryFileSystem.create();
+        if (imfs) {
+            const fs = new MountableFileSystem(imfs);
+            Object.keys(opts).forEach((mountPoint) => {
+                fs.mount(mountPoint, opts[mountPoint]);
+            });
+            return fs;
+        }
     }
 
     static isAvailable() {
@@ -204,11 +197,11 @@ export default class MountableFileSystem extends BaseFileSystem {
         }
         // Scenario 2: Different file systems.
         // Read old file, write new file, delete old file.
-        return fs.readFile(oldPath, function (err, data) {
+        return fs.readFile(oldPath, (err, data) => {
             if (err) {
                 return cb(err);
             }
-            fs.writeFile(newPath, data, function (err) {
+            fs.writeFile(newPath, data, (err) => {
                 if (err) {
                     return cb(err);
                 }
@@ -255,7 +248,7 @@ export default class MountableFileSystem extends BaseFileSystem {
                 return rv2;
             }
             // Filter out duplicates.
-            return rv2.concat(rv.filter((val) => rv2.indexOf(val) === -1));
+            return rv2.concat(rv.filter((val) => !rv2.includes(val)));
 
         } catch (e) {
             if (rv === null) {
@@ -275,7 +268,7 @@ export default class MountableFileSystem extends BaseFileSystem {
                     const rv = this.rootFs.readdirSync(p);
                     if (files) {
                         // Filter out duplicates.
-                        files = files.concat(rv.filter((val) => files.indexOf(val) === -1));
+                        files = files.concat(rv.filter((val) => !files.includes(val)));
                     } else {
                         files = rv;
                     }
@@ -382,7 +375,7 @@ function defineFcn(name, isSync, numArgs) {
         const path = args[0];
         const rv = this._getFs(path);
         args[0] = rv.path;
-        if (typeof args[args.length - 1] === "function") {
+        if (typeof(args[args.length - 1]) === "function") {
             const cb = args[args.length - 1];
             args[args.length - 1] = (...args) => {
                 if (args.length > 0 && args[0] instanceof ApiError) {

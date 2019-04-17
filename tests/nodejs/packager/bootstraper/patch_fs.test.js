@@ -36,17 +36,25 @@ describe("nodejs", "packager", "bootstraper", () => {
         await adone.fast.src(volumePath("app.zip"))
             .extract()
             .dest(appPath);
-        // const origContent = await fs.readFile(join(appPath, "index.js"));
+        const origContent = await fs.readFile(join(appPath, "index.js"), "utf8");
         await fs.rm(appPath);
 
-        await protoBootstraper(execPath, "fs:patched");
+        const kriFs = kri.fs;
+        protoBootstraper(execPath);
+        if (!kriFs.isNativePatched()) {
+            throw new Error("Native fs is not patched");
+        }
 
-        assert.exists(global.__kri_loader__.unpatchFs);
+        if (kriFs.readFileSync("/app/index.js", "utf8") !== origContent) {
+            kriFs.unpatchNative();
+            throw new Error("Readed content is not equal to expected one");
+        }
 
-        global.__kri_loader__.unpatchFs();
+        kriFs.unpatchNative();
 
-        delete global.__kri_loader__;
-
+        if (kriFs.isNativePatched()) {
+            throw new Error("Native should be unpatched");
+        }
     });
 });
 

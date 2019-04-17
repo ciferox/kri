@@ -8,7 +8,7 @@ const {
 // --- KRI EOF data format ---
 //
 // The 0-section is common - now it's only header with size of 64 bytes.
-// The content of the section starting at offset 16 should be interpreted
+// The content of the section starting at offset 24 should be interpreted
 // according to the version of EOF-data format.
 //
 // 0-section structure:

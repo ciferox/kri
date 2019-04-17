@@ -47,8 +47,8 @@ export default class InMemoryFileSystem extends SyncKeyValueFileSystem {
     /**
      * Creates an InMemoryFileSystem instance.
      */
-    static Create(options, cb) {
-        cb(null, new InMemoryFileSystem());
+    static create() {
+        return new InMemoryFileSystem();
     }
 }
 InMemoryFileSystem.Name = "InMemory";

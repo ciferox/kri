@@ -100,37 +100,4 @@ describe("nodejs", "packager", "bootstraper", () => {
         await writeExecFile(execPath, eofBuilder);
         await assert.throws(async () => protoBootstraper(execPath), Error, /nvalid volume mount name/);
     });
-
-    it("should mount volumes", async () => {
-        const eofBuilder = await getSimpleBuilder();
-        const execPath = join(tmpPath, "exec");
-
-        await writeExecFile(execPath, eofBuilder);
-        await protoBootstraper(execPath, "volumes:mounted");
-
-        assert.exists(global.__kri_loader__.vfs);
-
-        const appPath = await fs.tmpName();
-        await adone.fast.src(volumePath("app.zip"))
-            .extract()
-            .dest(appPath);
-        
-        assert.equal(global.__kri_loader__.vfs.readFileSync("/app/index.js", "utf8"), await fs.readFile(join(appPath, "index.js")));
-
-        await fs.rm(appPath);
-
-        delete global.__kri_loader__;
-    });
-
-    it("should patch fs module", async () => {
-        const eofBuilder = await getSimpleBuilder();
-        const execPath = join(tmpPath, "exec");
-
-        await writeExecFile(execPath, eofBuilder);
-        await protoBootstraper(execPath, "fs:patched");
-
-        assert.exists(global.__kri_loader__.unpatchFs);
-        global.__kri_loader__.unpatchFs();
-    });
 });
-

@@ -42,11 +42,9 @@ export class BaseFileSystem {
                         return this.stat(path.dirname(p), false, (e, parentStats) => {
                             if (e) {
                                 cb(e);
-                            }
-                            else if (parentStats && !parentStats.isDirectory()) {
+                            } else if (parentStats && !parentStats.isDirectory()) {
                                 cb(ApiError.ENOTDIR(path.dirname(p)));
-                            }
-                            else {
+                            } else {
                                 this.createFile(p, flag, mode, cb);
                             }
                         });
@@ -55,8 +53,7 @@ export class BaseFileSystem {
                     default:
                         return cb(new ApiError(ErrorCode.EINVAL, "Invalid FileFlag object."));
                 }
-            }
-            else {
+            } else {
                 // File exists.
                 if (stats && stats.isDirectory()) {
                     return cb(ApiError.EISDIR(p));
@@ -72,15 +69,13 @@ export class BaseFileSystem {
                         return this.openFile(p, flag, (e, fd) => {
                             if (e) {
                                 cb(e);
-                            }
-                            else if (fd) {
+                            } else if (fd) {
                                 fd.truncate(0, () => {
                                     fd.sync(() => {
                                         cb(null, fd);
                                     });
                                 });
-                            }
-                            else {
+                            } else {
                                 fail();
                             }
                         });
@@ -133,8 +128,7 @@ export class BaseFileSystem {
         let stats;
         try {
             stats = this.statSync(p, false);
-        }
-        catch (e) {
+        } catch (e) {
             // File does not exist.
             switch (flag.pathNotExistsAction()) {
                 case ActionType.CREATE_FILE:
@@ -205,7 +199,7 @@ export class BaseFileSystem {
     }
 
     exists(p, cb) {
-        this.stat(p, null, function (err) {
+        this.stat(p, null, (err) => {
             cb(!err);
         });
     }
@@ -214,8 +208,7 @@ export class BaseFileSystem {
         try {
             this.statSync(p, true);
             return true;
-        }
-        catch (e) {
+        } catch (e) {
             return false;
         }
     }
@@ -230,14 +223,12 @@ export class BaseFileSystem {
                 const addPaths = splitPath.slice(0, i + 1);
                 splitPath[i] = path.join.apply(null, addPaths);
             }
-        }
-        else {
+        } else {
             // No symlinks. We just need to verify that it exists.
-            this.exists(p, function (doesExist) {
+            this.exists(p, (doesExist) => {
                 if (doesExist) {
                     cb(null, p);
-                }
-                else {
+                } else {
                     cb(ApiError.ENOENT(p));
                 }
             });
@@ -256,24 +247,21 @@ export class BaseFileSystem {
             }
             return splitPath.join(path.sep);
         }
-        else {
-            // No symlinks. We just need to verify that it exists.
-            if (this.existsSync(p)) {
-                return p;
-            }
-            else {
-                throw ApiError.ENOENT(p);
-            }
+
+        // No symlinks. We just need to verify that it exists.
+        if (this.existsSync(p)) {
+            return p;
         }
+        throw ApiError.ENOENT(p);
     }
 
     truncate(p, len, cb) {
-        this.open(p, FileFlag.getFileFlag("r+"), 0x1a4, (function (er, fd) {
+        this.open(p, FileFlag.getFileFlag("r+"), 0x1a4, ((er, fd) => {
             if (er) {
                 return cb(er);
             }
-            fd.truncate(len, (function (er) {
-                fd.close((function (er2) {
+            fd.truncate(len, ((er) => {
+                fd.close(((er2) => {
                     cb(er || er2);
                 }));
             }));
@@ -285,11 +273,9 @@ export class BaseFileSystem {
         // Need to safely close FD, regardless of whether or not truncate succeeds.
         try {
             fd.truncateSync(len);
-        }
-        catch (e) {
+        } catch (e) {
             throw e;
-        }
-        finally {
+        } finally {
             fd.closeSync();
         }
     }
@@ -303,7 +289,7 @@ export class BaseFileSystem {
                 return cb(err);
             }
             cb = function (err, arg) {
-                fd.close(function (err2) {
+                fd.close((err2) => {
                     if (!err) {
                         err = err2;
                     }
@@ -319,14 +305,12 @@ export class BaseFileSystem {
                 fd.read(buf, 0, stat.size, 0, (err) => {
                     if (err) {
                         return cb(err);
-                    }
-                    else if (encoding === null) {
+                    } else if (encoding === null) {
                         return cb(err, buf);
                     }
                     try {
                         cb(null, buf.toString(encoding));
-                    }
-                    catch (e) {
+                    } catch (e) {
                         cb(e);
                     }
                 });
@@ -347,8 +331,7 @@ export class BaseFileSystem {
                 return buf;
             }
             return buf.toString(encoding);
-        }
-        finally {
+        } finally {
             fd.closeSync();
         }
     }
@@ -357,12 +340,12 @@ export class BaseFileSystem {
         // Wrap cb in file closing code.
         const oldCb = cb;
         // Get file.
-        this.open(fname, flag, 0x1a4, function (err, fd) {
+        this.open(fname, flag, 0x1a4, (err, fd) => {
             if (err) {
                 return cb(err);
             }
             cb = function (err) {
-                fd.close(function (err2) {
+                fd.close((err2) => {
                     oldCb(err ? err : err2);
                 });
             };
@@ -370,8 +353,7 @@ export class BaseFileSystem {
                 if (typeof data === "string") {
                     data = Buffer.from(data, encoding);
                 }
-            }
-            catch (e) {
+            } catch (e) {
                 return cb(e);
             }
             // Write into file.
@@ -388,8 +370,7 @@ export class BaseFileSystem {
             }
             // Write into file.
             fd.writeSync(data, 0, data.length, 0);
-        }
-        finally {
+        } finally {
             fd.closeSync();
         }
     }
@@ -397,12 +378,12 @@ export class BaseFileSystem {
     appendFile(fname, data, encoding, flag, mode, cb) {
         // Wrap cb in file closing code.
         const oldCb = cb;
-        this.open(fname, flag, mode, function (err, fd) {
+        this.open(fname, flag, mode, (err, fd) => {
             if (err) {
                 return cb(err);
             }
             cb = function (err) {
-                fd.close(function (err2) {
+                fd.close((err2) => {
                     oldCb(err ? err : err2);
                 });
             };
@@ -420,8 +401,7 @@ export class BaseFileSystem {
                 data = Buffer.from(data, encoding);
             }
             fd.writeSync(data, 0, data.length, null);
-        }
-        finally {
+        } finally {
             fd.closeSync();
         }
     }
@@ -487,8 +467,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.renameSync(oldPath, newPath);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -496,8 +475,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
     stat(p, isLstat, cb) {
         try {
             cb(null, this.statSync(p, isLstat));
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -505,8 +483,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
     open(p, flags, mode, cb) {
         try {
             cb(null, this.openSync(p, flags, mode));
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -515,8 +492,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.unlinkSync(p);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -525,8 +501,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.rmdirSync(p);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -535,8 +510,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.mkdirSync(p, mode);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -544,8 +518,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
     readdir(p, cb) {
         try {
             cb(null, this.readdirSync(p));
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -554,8 +527,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.chmodSync(p, isLchmod, mode);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -564,8 +536,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.chownSync(p, isLchown, uid, gid);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -574,8 +545,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.utimesSync(p, atime, mtime);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -584,8 +554,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.linkSync(srcpath, dstpath);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -594,8 +563,7 @@ export class SynchronousFileSystem extends BaseFileSystem {
         try {
             this.symlinkSync(srcpath, dstpath, type);
             cb();
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
@@ -603,10 +571,8 @@ export class SynchronousFileSystem extends BaseFileSystem {
     readlink(p, cb) {
         try {
             cb(null, this.readlinkSync(p));
-        }
-        catch (e) {
+        } catch (e) {
             cb(e);
         }
     }
 }
-//# sourceMappingURL=file_system.js.map

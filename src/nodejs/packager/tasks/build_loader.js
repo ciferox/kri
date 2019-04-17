@@ -7,9 +7,9 @@ const {
     std: { path: { join } }
 } = adone;
 
-@task("generateBootstraper")
+@task("buildLoader")
 export default class PatchFile extends IsomorphicTask {
-    async main({ cwd } = {}) {
+    async main({ cwd, path } = {}) {
         const bundle = await rollup({
             onwarn: adone.noop,
             input: join(kri.ROOT_PATH, "src", "fs", "index.js"),
@@ -27,12 +27,13 @@ export default class PatchFile extends IsomorphicTask {
             compact: true,
             name: "kriFs",
             globals: {
+                fs: "require('fs')",
                 path: "require('path')",
                 buffer: "require('buffer')"
             }
         });
 
-        const bootstrap = await fs.readFile(join(__dirname, "bootstrap.asset.js"), "utf8");
+        const bootstrap = await fs.readFile(path, "utf8");
 
         return [
             output[0].code,

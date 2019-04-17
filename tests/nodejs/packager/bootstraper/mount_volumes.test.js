@@ -33,18 +33,14 @@ describe("nodejs", "packager", "bootstraper", () => {
         await writeExecFile(execPath, eofBuilder);
         await protoBootstraper(execPath, "volumes:mounted");
 
-        assert.exists(global.__kri_loader__.vfs);
-
         const appPath = await fs.tmpName();
         await adone.fast.src(volumePath("app.zip"))
             .extract()
             .dest(appPath);
         
-        assert.equal(global.__kri_loader__.vfs.readFileSync("/app/index.js", "utf8"), await fs.readFile(join(appPath, "index.js")));
+        assert.equal(kri.fs.readFileSync("/app/index.js", "utf8"), await fs.readFile(join(appPath, "index.js"), "utf8"));
 
         await fs.rm(appPath);
-
-        delete global.__kri_loader__;
     });
 });
 

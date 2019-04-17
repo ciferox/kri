@@ -139,35 +139,19 @@ export function emptyBuffer() {
  * Option validator for a Buffer file system option.
  * @hidden
  */
-export function bufferValidator(v, cb) {
-    if (Buffer.isBuffer(v)) {
-        cb();
-    } else {
-        cb(new ApiError(ErrorCode.EINVAL, "option must be a Buffer."));
+export function bufferValidator(v) {
+    if (!Buffer.isBuffer(v)) {
+        throw new ApiError(ErrorCode.EINVAL, "option must be a Buffer.");
     }
 }
 /**
  * Checks that the given options object is valid for the file system options.
  * @hidden
  */
-export function checkOptions(fsType, opts, cb) {
+export function checkOptions(fsType, opts) {
     const optsInfo = fsType.Options;
     const fsName = fsType.Name;
-    let pendingValidators = 0;
-    let callbackCalled = false;
-    let loopEnded = false;
-    function validatorCallback(e) {
-        if (!callbackCalled) {
-            if (e) {
-                callbackCalled = true;
-                cb(e);
-            }
-            pendingValidators--;
-            if (pendingValidators === 0 && loopEnded) {
-                cb();
-            }
-        }
-    }
+
     // Check for required options.
     for (const optName in optsInfo) {
         if (optsInfo.hasOwnProperty(optName)) {
@@ -181,39 +165,24 @@ export function checkOptions(fsType, opts, cb) {
                     const incorrectOptions = Object.keys(opts).filter((o) => !(o in optsInfo)).map((a) => {
                         return { str: a, distance: levenshtein(optName, a) };
                     }).filter((o) => o.distance < 5).sort((a, b) => a.distance - b.distance);
-                    // Validators may be synchronous.
-                    if (callbackCalled) {
-                        return;
-                    }
-                    callbackCalled = true;
-                    return cb(new ApiError(ErrorCode.EINVAL, `[${fsName}] Required option '${optName}' not provided.${incorrectOptions.length > 0 ? ` You provided unrecognized option '${incorrectOptions[0].str}'; perhaps you meant to type '${optName}'.` : ""}\nOption description: ${opt.description}`));
+                    throw new ApiError(ErrorCode.EINVAL, `[${fsName}] Required option '${optName}' not provided.${incorrectOptions.length > 0 ? ` You provided unrecognized option '${incorrectOptions[0].str}'; perhaps you meant to type '${optName}'.` : ""}\nOption description: ${opt.description}`);
                 }
                 // Else: Optional option, not provided. That is OK.
             } else {
                 // Option provided! Check type.
                 let typeMatches = false;
                 if (Array.isArray(opt.type)) {
-                    typeMatches = opt.type.indexOf(typeof (providedValue)) !== -1;
+                    typeMatches = opt.type.includes(typeof (providedValue));
                 } else {
                     typeMatches = typeof (providedValue) === opt.type;
                 }
                 if (!typeMatches) {
-                    // Validators may be synchronous.
-                    if (callbackCalled) {
-                        return;
-                    }
-                    callbackCalled = true;
-                    return cb(new ApiError(ErrorCode.EINVAL, `[${fsName}] Value provided for option ${optName} is not the proper type. Expected ${Array.isArray(opt.type) ? `one of {${opt.type.join(", ")}}` : opt.type}, but received ${typeof (providedValue)}\nOption description: ${opt.description}`));
+                    throw new ApiError(ErrorCode.EINVAL, `[${fsName}] Value provided for option ${optName} is not the proper type. Expected ${Array.isArray(opt.type) ? `one of {${opt.type.join(", ")}}` : opt.type}, but received ${typeof (providedValue)}\nOption description: ${opt.description}`);
                 } else if (opt.validator) {
-                    pendingValidators++;
-                    opt.validator(providedValue, validatorCallback);
+                    opt.validator(providedValue);
                 }
                 // Otherwise: All good!
             }
         }
-    }
-    loopEnded = true;
-    if (pendingValidators === 0 && !callbackCalled) {
-        cb();
     }
 }
