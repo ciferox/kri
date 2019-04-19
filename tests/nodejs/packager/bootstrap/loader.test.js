@@ -1,5 +1,5 @@
 import protoBootstraper from "./proto";
-import { getSimpleBuilder, volumePath } from "./helpers";
+import { getSimpleBuilder, writeExecFile } from "./helpers";
 
 const {
     fs,
@@ -10,15 +10,7 @@ const {
     nodejs: { EOFBuilder }
 } = kri;
 
-const writeExecFile = (execPath, eofBuilder) => new Promise((resolve, reject) => {
-    const ws = fs.createWriteStream(execPath);
-    eofBuilder.toStream()
-        .pipe(ws)
-        .on("close", resolve)
-        .on("error", reject);
-});
-
-describe("nodejs", "packager", "bootstraper", () => {
+describe("nodejs", "packager", "bootstrap", "loader", () => {
     let tmpPath;
     let eofBuilder;
 
@@ -91,7 +83,27 @@ describe("nodejs", "packager", "bootstraper", () => {
         await assert.throws(async () => protoBootstraper(execPath), Error, /Invalid section data size/);
     });
 
-    it("should throw is name is not prefixed with '/'", async () => {
+    it("should throw if init section is empty", async () => {
+        const eofBuilder = await getSimpleBuilder();
+        const execPath = join(tmpPath, "exec");
+
+        // modify in common header
+        eofBuilder.header.writeUInt32BE(0, 24);
+        await writeExecFile(execPath, eofBuilder);
+        await assert.throws(async () => protoBootstraper(execPath), Error, /Empty 'init' section/);
+    });
+
+    it("should throw if type is not specified", async () => {
+        const eofBuilder = await getSimpleBuilder();
+        const execPath = join(tmpPath, "exec");
+
+        // // modify mount name
+        eofBuilder.volumes[0].header.writeUInt16BE(0, 30);
+        await writeExecFile(execPath, eofBuilder);
+        await assert.throws(async () => protoBootstraper(execPath), Error, /No filesystem type for/);
+    });
+
+    it("should throw if name is not prefixed with '/'", async () => {
         const eofBuilder = await getSimpleBuilder();
         const execPath = join(tmpPath, "exec");
 
@@ -99,5 +111,46 @@ describe("nodejs", "packager", "bootstraper", () => {
         eofBuilder.volumes[0].header.write("dapp", 24, 4);
         await writeExecFile(execPath, eofBuilder);
         await assert.throws(async () => protoBootstraper(execPath), Error, /nvalid volume mount name/);
+    });
+
+    it("set 'type'", async () => {
+        const eofBuilder = await getSimpleBuilder({ 
+            type: "aaa"
+        });
+        const execPath = join(tmpPath, "exec");
+
+        await writeExecFile(execPath, eofBuilder);
+        const volumes = await protoBootstraper(execPath, {
+            result: true
+        });
+        assert.equal(volumes.get("/app").type, "aaa");
+    });
+
+    it("set 'mapping'", async () => {
+        const eofBuilder = await getSimpleBuilder({ 
+            mapping: "adone"
+        });
+        const execPath = join(tmpPath, "exec");
+
+        await writeExecFile(execPath, eofBuilder);
+        const volumes = await protoBootstraper(execPath, {
+            result: true
+        });
+        assert.equal(volumes.get("/app").mapping, "adone");
+    });
+
+    it("set 'index'", async () => {
+        const eofBuilder = await getSimpleBuilder({ 
+            mapping: "adone",
+            index: "some_index.file.js"
+        });
+        const execPath = join(tmpPath, "exec");
+
+        await writeExecFile(execPath, eofBuilder);
+        const volumes = await protoBootstraper(execPath, {
+            result: true
+        });
+        assert.equal(volumes.get("/app").mapping, "adone");
+        assert.equal(volumes.get("/app").index, "some_index.file.js");
     });
 });

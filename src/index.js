@@ -1,4 +1,4 @@
-import "adone";
+require("adone");
 
 const kri = {
     ROOT_PATH: adone.std.path.join(__dirname, ".."),

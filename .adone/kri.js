@@ -1,4 +1,21 @@
 export default {
+    "realm": {
+        "artifactTags": [
+            "src",
+            "info"
+        ]
+    },
+    "volumes": {
+        "/adone": {
+            type: "zip",
+            input: adone.realm.rootRealm,
+            mapping: "adone"
+        },
+        // "/nativefs": {
+        //     type: "fs",
+        //     mapping: "nfs"
+        // }
+    },
     configure: [
         "--fully-static",
         "--without-node-options",

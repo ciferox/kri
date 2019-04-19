@@ -1,4 +1,25 @@
 {
+    "artifacts": {
+        "share": [
+            "share"
+        ],
+        "src": [
+            "src"
+        ],
+        "configs": [
+            ".eslintrc.js",
+            ".gitignore",
+            "jsconfig.json"
+        ],
+        "info": [
+            "LICENSE",
+            "README.md"
+        ],
+        "tests": [
+            "tests",
+            "shanifile.js"
+        ]
+    },
     "tasks": {
         "basePath": "lib/tasks"
     },

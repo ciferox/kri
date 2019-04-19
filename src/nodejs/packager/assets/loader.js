@@ -4,8 +4,21 @@ const EOF_VERSION = 1;
 const MAX_VOLUMES = 64;
 
 const fs = require("fs");
+const path = require("path");
 const fd = fs.openSync(process.execPath, "r");
 const stat = fs.statSync(process.execPath);
+
+const readString = (buff, ctx) => {
+    const { offset } = ctx;
+    const sz = buff.readUInt16BE(offset);
+    ctx.offset += 2;
+    if (sz > 0) {
+        ctx.offset += sz;
+        return buff.slice(offset + 2, offset + 2 + sz).toString("utf8");
+    }
+    return "";
+};
+
 const commonHeader = Buffer.allocUnsafe(EOF_HEADER_SIZE);
 let currentPos = stat.size - EOF_HEADER_SIZE;
 
@@ -25,11 +38,22 @@ if (volumesNum < 1 || volumesNum > MAX_VOLUMES) {
     throw new RangeError(`Number of volumes out of range: ${volumesNum}`);
 }
 
-const volumes = global.__kri__.volumes = [];
+const volumes = new Map();
 
 let sectionHdrSize = commonHeader.readUInt32BE(16);
 let sectionSize = commonHeader.readUInt32BE(20);
+const initSize = commonHeader.readUInt32BE(24);
+
+if (initSize === 0) {
+    throw new Error("Empty 'init' section");
+}
+
+const initCode = Buffer.allocUnsafe(initSize);
+currentPos -= initSize;
+fs.readSync(fd, initCode, 0, initSize, currentPos);
+
 let i = 0;
+let startupFile = null;
 
 while (sectionSize > 0 && sectionHdrSize > 0) {
     const section = Buffer.allocUnsafe(sectionSize);
@@ -50,27 +74,40 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
         throw new Error("Invalid section data size");
     }
 
-    const nameSize = header.readUInt32BE(8);
-    const indexSize = header.readUInt32BE(12);
+    const ctx = {
+        offset: 24
+    };
 
-    const name = header.slice(24, 24 + nameSize).toString("utf8");
+    const name = readString(header, ctx);
     if (!name.startsWith("/")) {
         throw new Error(`Invalid volume mount name: ${name}`);
     }
+    
+    const type = readString(header, ctx);
+    if (!type) {
+        throw new Error(`No filesystem type for: ${name}`);
+    }
 
-    let index;
-    if (indexSize > 0) {
-        index = header.slice(24 + nameSize, 24 + nameSize + indexSize).toString("utf8");
-    } else if (i === 0) {
+    const mapping = readString(header, ctx);
+
+    let index = readString(header, ctx);
+    
+    if (index.length === 0) {
         index = "index.js";
     }
 
     const data = section.slice(sectionHdrSize);
-    volumes.push({
+    volumes.set(name, {
+        type,
         name,
+        mapping,
         index,
         data
     });
+
+    if (i === 0) {
+        startupFile = path.join(name, index);
+    }
 
     sectionHdrSize = header.readUInt32BE(16);
     sectionSize = header.readUInt32BE(20);
@@ -78,10 +115,8 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
     i++;
 }
 
-kriFs.mountVolumes(volumes);
-kriFs.patchNative();
+global.__kri__.volumes = volumes;
+global.__kri__.main = startupFile;
 
-// run
-const path = require("path");
-process.argv.splice(1, 0, path.join(volumes[0].name, volumes[0].index));
-require("module").runMain();
+const init = new Function("require ", "__kri__", initCode.toString("utf8"));
+init(require, global.__kri__);

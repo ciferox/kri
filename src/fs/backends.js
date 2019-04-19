@@ -14,8 +14,8 @@ import ZipFS from "./backend/zip";
 });
 
 export default {
-    InMemory,
-    MountableFileSystem,
-    OverlayFS,
-    ZipFS
+    memory: InMemory,
+    mountable: MountableFileSystem,
+    overlay: OverlayFS,
+    zip: ZipFS
 };

@@ -1,7 +1,7 @@
 {
   "name": "kri",
-  "description": "Monadic form of ADONE core-realm",
-  "version": "0.0.3",
+  "description": "Monadic form of ADONE",
+  "version": "0.0.4",
   "author": "taaliman <smaxim@ciferox.com>",
   "license": "Apache-2.0",
   "homepage": "https://adone.io/",
@@ -10,7 +10,7 @@
     "url": "https://github.com/ciferox/kri.git"
   },
   "engines": {
-    "node": ">=10.15.3"
+    "node": ">=11.0.0"
   },
   "bin": "bin/kri.js",
   "main": "lib",

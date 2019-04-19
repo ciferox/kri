@@ -1,43 +1,31 @@
-import { rollup } from "rollup";
-import cleanup from "rollup-plugin-cleanup";
-
 const {
+    is,
     fs,
     task: { IsomorphicTask, task },
-    std: { path: { join } }
+    std: { path: { join, resolve } }
 } = adone;
 
 @task("buildLoader")
-export default class PatchFile extends IsomorphicTask {
-    async main({ cwd, path } = {}) {
-        const bundle = await rollup({
-            onwarn: adone.noop,
-            input: join(kri.ROOT_PATH, "src", "fs", "index.js"),
-            plugins: [
-                cleanup({
-                    comments: "none",
-                    sourcemap: false,
-                    extensions: ["js"]
-                })
-            ]
+export default class extends IsomorphicTask {
+    async main({ cwd, path, options } = {}) {
+        this.manager.log({
+            message: "building 'loader'"
         });
 
-        const { output } = await bundle.generate({
-            format: "iife",
-            compact: true,
-            name: "kriFs",
-            globals: {
-                fs: "require('fs')",
-                path: "require('path')",
-                buffer: "require('buffer')"
-            }
+        // Prepare _third_party_main
+        let _third_party_main;
+        if (is.string(options.easy)) {
+            _third_party_main = await fs.readFile(resolve(options.easy), { encoding: "utf8" });
+        } else {
+            // default            
+            _third_party_main = await fs.readFile(path, "utf8");
+        }
+
+        await fs.writeFile(join(cwd, "lib/_third_party_main"), _third_party_main, "utf8");
+
+        this.manager.log({
+            message: "'loader' successfully builded",
+            status: true
         });
-
-        const bootstrap = await fs.readFile(path, "utf8");
-
-        return [
-            output[0].code,
-            bootstrap
-        ].join("\n");
     }
 }

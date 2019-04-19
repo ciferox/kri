@@ -10,6 +10,9 @@ const {
 // The 0-section is common - now it's only header with size of 64 bytes.
 // The content of the section starting at offset 24 should be interpreted
 // according to the version of EOF-data format.
+// 
+// There is a special section called 'init'. This section does not have a
+// header and the loader interprets it as a module with one export.
 //
 // 0-section structure:
 //
@@ -17,10 +20,11 @@ const {
 // ------------------------------------------------------------------
 // signature                           0      12    'nodeadonekri'
 // version of EOF-data format         12       2    1
-// number of volumes                  14       2    
+// number of volumes                  14       2
 // first section header size          16       4
 // first section size                 20       4
-// reserved                        24-63
+// 'init' section size                24       4
+// reserved                        28-63
 //
 // All other sections represent volumes with header and data.
 // First volume (with index 0) is a bootable (main app module/realm).
@@ -31,11 +35,12 @@ const {
 // ------------------------------------------------------------------
 // header size                         0       4
 // data size                           4       4
-// name length                         8       4
-// index length                       12       4 
+// reserved                         8-15
 // next section header size           16       4    0
 // next section size                  20       4    0
-// name                               24   <var>
+// name/mount point                   24   <var>
+// type                            <var>   <var>
+// mapping                         <var>   <var>
 // index                           <var>   <var>
 //
 
@@ -43,10 +48,23 @@ const EOF_SIG = "nodeadonekri";
 const EOF_HEADER_SIZE = 64;
 const EOF_VERSION = 1;
 
+const writeString = (str, buff, offset) => {
+    buff.writeUInt16BE(str.length, offset);
+    if (str.length > 0) {
+        buff.write(str, offset + 2, str.length);
+    }
+    return offset + 2 + str.length;
+};
+
 export default class EOFBuilder {
     constructor() {
+        this.init = Buffer.alloc(0);
         this.volumes = [];
         this.builded = false;
+    }
+
+    addInit(data) {
+        this.init = data;
     }
 
     /**
@@ -60,7 +78,11 @@ export default class EOFBuilder {
      * @param {buffer} data volume data
      * @param {string} index path to javascript index-file relative to volume base.
      */
-    async addVolume({ name, volume, index, startup = false } = {}) {
+    async addVolume({ type, mapping = "", name, volume, index = "", startup = false } = {}) {
+        if (!is.string(type) || type.length === 0) {
+            throw new error.NotValidException("Invalid volume type");
+        }
+        
         if (!is.string(name) || name.length === 0) {
             throw new error.NotValidException("Invalid volume name");
         }
@@ -93,7 +115,9 @@ export default class EOFBuilder {
         }
 
         this.volumes.push({
+            type,
             name,
+            mapping,
             index,
             data,
             startup
@@ -126,21 +150,24 @@ export default class EOFBuilder {
         header.writeUInt16BE(this.volumes.length, 14);
         header.writeUInt32BE(0, 16);
         header.writeUInt32BE(0, 20);
+        header.writeUInt32BE(Buffer.byteLength(this.init), 24);
 
         let prevVol;
         for (let i = 0; i < this.volumes.length; i++) {
             const vol = this.volumes[i];
-
-            const hdrSize = 4 + 4 + 4 + 4 + 4 + 4 + vol.name.length + vol.index.length;
+            const hdrSize = 4 + 4 + 4 + 4 + 4 + 4 + 4 * 2 + vol.type.length + vol.name.length + vol.mapping.length + vol.index.length;
             const volHeader = Buffer.allocUnsafe(hdrSize);
             volHeader.writeUInt32BE(hdrSize, 0);
             volHeader.writeUInt32BE(vol.data.length, 4);
-            volHeader.writeUInt32BE(vol.name.length, 8);
-            volHeader.writeUInt32BE(vol.index.length, 12);
+            volHeader.writeUInt32BE(0, 8); // reserved
+            volHeader.writeUInt32BE(0, 12); // reserved
             volHeader.writeUInt32BE(0, 16);
             volHeader.writeUInt32BE(0, 20);
-            volHeader.write(vol.name, 24, vol.name.length);
-            volHeader.write(vol.index, 24 + vol.name.length, vol.index.length);
+            let offset = 24;
+            offset = writeString(vol.name, volHeader, offset);
+            offset = writeString(vol.type, volHeader, offset);
+            offset = writeString(vol.mapping, volHeader, offset);
+            offset = writeString(vol.index, volHeader, offset);
             vol.header = volHeader;
 
             if (i === 0) {
@@ -168,6 +195,7 @@ export default class EOFBuilder {
             readable.push(vol.data);
         }
 
+        readable.push(this.init);
         readable.push(this.header);
         readable.push(null);
         return readable;

@@ -85,13 +85,17 @@ export default class NodejsPackager extends task.TaskManager {
         await this.#patchFiles();
 
         // 4.
-        await this.#buildLoader();
+        await this.runAndWait("buildLoader", {
+            cwd: this.cwd,
+            path: path.join(__dirname, "assets", "loader.js"),
+            options: this.options
+        });
 
         // 5.
-        await this.#configureAndBuildSources()
+        await this.#configureAndBuildSources();
 
         // 6.
-        await this.#buildEof()
+        await this.#buildEof();
 
         // 7.
         await this.#profit();
@@ -113,21 +117,29 @@ export default class NodejsPackager extends task.TaskManager {
 
         const lstat = await fs.lstat(input);
         if (lstat.isDirectory()) {
+            // Connecting to root realm.
+            await realm.rootRealm.connect();
+
             // Check realm
-            const mainRealm = new realm.RealmManager({
+            this.inputRealm = new realm.RealmManager({
                 cwd: input
             });
 
-            await mainRealm.connect();
+            await this.inputRealm.connect();
 
             try {
-                this.kriConfig = adone.require(mainRealm.getPath(".adone", "kri"));
+                this.kriConfig = adone.require(this.inputRealm.getPath(".adone", "kri"));
                 if (this.kriConfig.default) {
                     this.kriConfig = this.kriConfig.default;
                 }
             } catch (err) {
                 //
             }
+        }
+
+        // Load custom config instead of default (in case of realm).
+        if (is.string(this.options.config)) {
+            this.kriConfig = adone.require(path.resolve(this.options.config));
         }
 
         // load tasks
@@ -252,34 +264,6 @@ export default class NodejsPackager extends task.TaskManager {
         });
     }
 
-    async #buildLoader() {
-        this.log({
-            message: "building loader"
-        });
-
-        // Prepare _third_party_main
-        let _third_party_main;
-        if (is.string(this.options.easy)) {
-            _third_party_main = await fs.readFile(path.resolve(this.options.easy), { encoding: "utf8" });
-        } else {
-            // default
-            _third_party_main = await this.runAndWait("buildLoader", {
-                cwd: this.cwd,
-                path: path.join(__dirname, "assets", "loader.js")
-            });
-        }
-
-        await this.#writeFile({
-            file: "lib/_third_party_main",
-            content: _third_party_main
-        });
-
-        this.log({
-            message: "loader successfully builded",
-            status: true
-        });
-    }
-
     async #configureAndBuildSources() {
         const compiler = new NodejsCompiler({
             cwd: this.cwd
@@ -351,31 +335,49 @@ export default class NodejsPackager extends task.TaskManager {
     async #buildEof() {
         const eofBuilder = new EOFBuilder();
 
-        const tmpPath = await fs.tmpName();
+        eofBuilder.addInit(await this.runAndWait("buildInit", {
+            cwd: this.cwd,
+            path: path.join(__dirname, "assets", "init.js"),
+            options: this.options
+        }));
 
-        const { input } = this.options;
+        // startup volume
+        await this.#addVolume(eofBuilder, {
+            type: "zip",
+            //mapping: "", // ???
+            input: this.inputRealm ? this.inputRealm : this.options.input,
+            startup: true
+        });
 
-        if (await fs.isDirectory(input)) {
-            // realm
-        } else {
-            // script
-            await fast.src(input)
-                .rename("index.js")
-                .pack("zip", "app.zip")
-                .dest(tmpPath);
-
-            await eofBuilder.addVolume({
-                name: "app",
-                volume: path.join(tmpPath, "app.zip"),
-                index: "index.js",
-                startup: true
+        // adone volumes
+        // console.log(adone.inspect(this.kriConfig.volumes));
+        for (const [name, { input, type, mapping }] of Object.entries(this.kriConfig.volumes)) {
+            await this.#addVolume(eofBuilder, {
+                input,
+                type,
+                mapping,
+                startup: false
             });
         }
 
-        await fs.rm(tmpPath);
-
         eofBuilder.build();
         this.eof = eofBuilder;
+    }
+
+    async #addVolume(eofBuilder, { input, type, mapping, startup } = {}) {
+        const { name, volume, index } = await this.runAndWait("volumeCreate", {
+            input,
+            startup
+        });
+
+        await eofBuilder.addVolume({
+            type, 
+            name,
+            mapping,
+            volume,
+            index,
+            startup
+        });
     }
 
     async #profit() {
@@ -402,9 +404,5 @@ export default class NodejsPackager extends task.TaskManager {
 
         const mode = await fs.statSync(nodeBinPath).mode;
         await fs.chmod(outPath, mode.toString(8).slice(-3));
-    }
-
-    #writeFile({ file, content, encoding = "utf8" } = {}) {
-        return fs.writeFile(path.join(this.cwd, file), content, encoding);
     }
 }

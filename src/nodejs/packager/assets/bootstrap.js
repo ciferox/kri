@@ -16,9 +16,10 @@
             };
         }
     };
+    __kri__.patch(internalFs, "internalModuleReadJSON");
+    __kri__.patch(internalFs, "internalModuleStat");
+
     Object.defineProperty(global, "__kri__", {
         value: __kri__
     });
-    __kri__.patch(internalFs, "internalModuleReadJSON");
-    __kri__.patch(internalFs, "internalModuleStat");
 }

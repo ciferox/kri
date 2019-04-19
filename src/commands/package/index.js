@@ -47,6 +47,7 @@ export default class PackageCommand extends Subsystem {
             {
                 name: "--config",
                 type: String,
+                default: null,
                 description: "Path to packager configuration file"
             },
             {

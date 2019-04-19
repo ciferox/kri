@@ -6,7 +6,7 @@ const {
 } = adone;
 
 @task("patchFile")
-export default class PatchFile extends IsomorphicTask {
+export default class extends IsomorphicTask {
     async main(options) {
         if (options.once && await exists(join(this.manager.backupPath, options.files))) {
             return;
