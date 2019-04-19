@@ -48,13 +48,18 @@ export default () => class NodeCommand extends Subsystem {
             });
             const indexJson = await nodejs.getReleases();
 
+            cli.updateProgress({
+                message: "checking cached versions"
+            });
+
             const options = opts.getAll();
 
             const items = indexJson.filter((item) => options.all
                 ? true
                 : semver.satisfies(item.version.substr(1), adone.package.engines.node, false));
-
+            
             const currentVersion = await nodejs.getCurrentVersion();
+
             const downloadedVersions = await this.nodejsManager.getDownloadedVersions();
 
             const styledItem = (item) => {

@@ -21,7 +21,7 @@ export var ErrorCode;
     ErrorCode[ErrorCode.ENOTEMPTY = 39] = "ENOTEMPTY";
     ErrorCode[ErrorCode.ENOTSUP = 95] = "ENOTSUP";
 })(ErrorCode || (ErrorCode = {}));
-/* tslint:disable:variable-name */
+
 /**
  * Strings associated with each error code.
  * @hidden
@@ -42,7 +42,8 @@ ErrorStrings[ErrorCode.ENOSPC] = "No space left on disk.";
 ErrorStrings[ErrorCode.EROFS] = "Cannot modify a read-only file system.";
 ErrorStrings[ErrorCode.ENOTEMPTY] = "Directory is not empty.";
 ErrorStrings[ErrorCode.ENOTSUP] = "Operation is not supported.";
-/* tslint:enable:variable-name */
+
+
 /**
  * Represents a BrowserFS error. Passed back to applications after a failed
  * call to the BrowserFS API.

@@ -1,4 +1,5 @@
 import { SimpleSyncRWTransaction, SyncKeyValueFileSystem } from "../generic/key_value_filesystem";
+
 /**
  * A simple in-memory key-value store backed by a JavaScript object.
  */
@@ -8,7 +9,7 @@ export class InMemoryStore {
     }
 
     name() {
-        return InMemoryFileSystem.Name;
+        return MemoryFS.name;
     }
 
     clear() {
@@ -35,21 +36,17 @@ export class InMemoryStore {
         delete this.store[key];
     }
 }
+
 /**
  * A simple in-memory file system backed by an InMemoryStore.
- * Files are not persisted across page loads.
  */
-export default class InMemoryFileSystem extends SyncKeyValueFileSystem {
+export default class MemoryFS extends SyncKeyValueFileSystem {
     constructor() {
         super({ store: new InMemoryStore() });
     }
 
-    /**
-     * Creates an InMemoryFileSystem instance.
-     */
     static create() {
-        return new InMemoryFileSystem();
+        return new MemoryFS();
     }
 }
-InMemoryFileSystem.Name = "InMemory";
-InMemoryFileSystem.Options = {};
+MemoryFS.options = {};

@@ -97,11 +97,19 @@ export class BaseFileSystem {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
-    stat(p, isLstat, cb) {
+    stat(p, options, cb) {
         cb(new ApiError(ErrorCode.ENOTSUP));
     }
 
-    statSync(p, isLstat) {
+    lstat(p, options, cb) {
+        cb(new ApiError(ErrorCode.ENOTSUP));
+    }
+
+    statSync(p, options) {
+        throw new ApiError(ErrorCode.ENOTSUP);
+    }
+
+    lstatSync(p, options) {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
@@ -182,11 +190,11 @@ export class BaseFileSystem {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
-    mkdir(p, mode, cb) {
+    mkdir(p, options, cb) {
         cb(new ApiError(ErrorCode.ENOTSUP));
     }
 
-    mkdirSync(p, mode) {
+    mkdirSync(p, options) {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
@@ -235,7 +243,7 @@ export class BaseFileSystem {
         }
     }
 
-    realpathSync(p, cache) {
+    realpathSync(p, options) {
         if (this.supportsLinks()) {
             // The path could contain symlinks. Split up the path,
             // resolve any symlinks, return the resolved string.
@@ -280,7 +288,7 @@ export class BaseFileSystem {
         }
     }
 
-    readFile(fname, encoding, flag, cb) {
+    readFile(fname, { encoding, flag }, cb) {
         // Wrap cb in file closing code.
         const oldCb = cb;
         // Get file.
@@ -318,7 +326,7 @@ export class BaseFileSystem {
         });
     }
 
-    readFileSync(fname, encoding, flag) {
+    readFileSync(fname, { encoding, flag } = {}) {
         // Get file.
         const fd = this.openSync(fname, flag, 0x1a4);
         try {
@@ -336,7 +344,7 @@ export class BaseFileSystem {
         }
     }
 
-    writeFile(fname, data, encoding, flag, mode, cb) {
+    writeFile(fname, data, { encoding, flag, mode } = {}, cb) {
         // Wrap cb in file closing code.
         const oldCb = cb;
         // Get file.
@@ -361,7 +369,7 @@ export class BaseFileSystem {
         });
     }
 
-    writeFileSync(fname, data, encoding, flag, mode) {
+    writeFileSync(fname, data, { encoding, flag, mode } = {}) {
         // Get file.
         const fd = this.openSync(fname, flag, mode);
         try {
@@ -472,9 +480,17 @@ export class SynchronousFileSystem extends BaseFileSystem {
         }
     }
 
-    stat(p, isLstat, cb) {
+    stat(p, options, cb) {
         try {
-            cb(null, this.statSync(p, isLstat));
+            cb(null, this.statSync(p, options));
+        } catch (e) {
+            cb(e);
+        }
+    }
+
+    lstat(p, options, cb) {
+        try {
+            cb(null, this.lstatSync(p, options));
         } catch (e) {
             cb(e);
         }
@@ -506,9 +522,9 @@ export class SynchronousFileSystem extends BaseFileSystem {
         }
     }
 
-    mkdir(p, mode, cb) {
+    mkdir(p, options, cb) {
         try {
-            this.mkdirSync(p, mode);
+            this.mkdirSync(p, options);
             cb();
         } catch (e) {
             cb(e);

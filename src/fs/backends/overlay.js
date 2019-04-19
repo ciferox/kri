@@ -107,7 +107,7 @@ export class UnlockedOverlayFS extends BaseFileSystem {
     }
 
     getName() {
-        return OverlayFS.Name;
+        return OverlayFS.name;
     }
 
     /**
@@ -222,7 +222,7 @@ export class UnlockedOverlayFS extends BaseFileSystem {
                             if (exists) {
                                 return this._writable.rename(oldPath, newPath, cb);
                             }
-                            this._writable.mkdir(newPath, mode, (mkdirErr) => {
+                            this._writable.mkdir(newPath, { mode }, (mkdirErr) => {
                                 if (mkdirErr) {
                                     return cb(mkdirErr);
                                 }
@@ -558,7 +558,7 @@ export class UnlockedOverlayFS extends BaseFileSystem {
         }
     }
 
-    mkdir(p, mode, cb) {
+    mkdir(p, { mode }, cb) {
         if (!this.checkInitAsync(cb)) {
             return;
         }
@@ -572,12 +572,12 @@ export class UnlockedOverlayFS extends BaseFileSystem {
                 if (err) {
                     return cb(err);
                 }
-                this._writable.mkdir(p, mode, cb);
+                this._writable.mkdir(p, { mode }, cb);
             });
         });
     }
 
-    mkdirSync(p, mode) {
+    mkdirSync(p, { mode }) {
         this.checkInitialized();
         if (this.existsSync(p)) {
             throw ApiError.EEXIST(p);
@@ -827,7 +827,7 @@ export class UnlockedOverlayFS extends BaseFileSystem {
                 if (!stats) {
                     return cb();
                 }
-                self._writable.mkdir(dir, stats.mode, (err) => {
+                self._writable.mkdir(dir, { mode: stats.mode }, (err) => {
                     if (err) {
                         return cb(err);
                     }
@@ -905,7 +905,7 @@ export class UnlockedOverlayFS extends BaseFileSystem {
                 return cb(err);
             }
             if (pStats.isDirectory()) {
-                return this._writable.mkdir(p, pStats.mode, cb);
+                return this._writable.mkdir(p, { mode: pStats.mode }, cb);
             }
             // need to copy file.
             this._readable.readFile(p, null, getFlag("r"), (err, data) => {
@@ -961,8 +961,7 @@ export default class OverlayFS extends LockedFS {
         super.getFSUnlocked()._initialize(cb);
     }
 }
-OverlayFS.Name = "OverlayFS";
-OverlayFS.Options = {
+OverlayFS.options = {
     writable: {
         type: "object",
         description: "The file system to write modified files to."

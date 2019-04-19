@@ -682,9 +682,9 @@ export default class ZipFS extends SynchronousFileSystem {
     /**
      * Constructs a ZipFS instance with the given options.
      */
-    static create(opts) {
-        const zipTOC = ZipFS._computeIndex(opts.zipData);
-        return new ZipFS(zipTOC, opts.name);
+    static create({ name, data } = {}) {
+        const zipTOC = ZipFS._computeIndex(data);
+        return new ZipFS(zipTOC, name);
     }
 
     static isAvailable() {
@@ -766,7 +766,7 @@ export default class ZipFS extends SynchronousFileSystem {
     }
 
     getName() {
-        return ZipFS.Name + (this.name !== "" ? ` ${this.name}` : "");
+        return ZipFS.name + (this.name !== "" ? ` ${this.name}` : "");
     }
 
     /**
@@ -824,7 +824,7 @@ export default class ZipFS extends SynchronousFileSystem {
         return true;
     }
 
-    statSync(path, isLstat) {
+    statSync(path) {
         const inode = this._index.getInode(path);
         if (inode === null) {
             throw ApiError.ENOENT(path);
@@ -881,7 +881,7 @@ export default class ZipFS extends SynchronousFileSystem {
     /**
      * Specially-optimized readfile.
      */
-    readFileSync(fname, encoding, flag) {
+    readFileSync(fname, { encoding, flag } = {}) {
         // Get file.
         const fd = this.openSync(fname, flag, 0x1a4);
         try {
@@ -896,9 +896,8 @@ export default class ZipFS extends SynchronousFileSystem {
         }
     }
 }
-ZipFS.Name = "ZipFS";
-ZipFS.Options = {
-    zipData: {
+ZipFS.options = {
+    data: {
         type: "object",
         description: "The zip file as a Buffer object.",
         validator: bufferValidator

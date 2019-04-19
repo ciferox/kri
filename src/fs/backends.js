@@ -1,11 +1,12 @@
 /* eslint-disable adone/no-typeof */
 import { checkOptions } from "./util";
-import InMemory from "./backend/memory";
-import MountableFileSystem from "./backend/mountable";
-import OverlayFS from "./backend/overlay";
-import ZipFS from "./backend/zip";
+import NativeFS from "./backends/native";
+import MemoryFS from "./backends/memory";
+import MountableFS from "./backends/mountable";
+import OverlayFS from "./backends/overlay";
+import ZipFS from "./backends/zip";
 
-[InMemory, MountableFileSystem, OverlayFS, ZipFS].forEach((fsType) => {
+[NativeFS, MemoryFS, MountableFS, OverlayFS, ZipFS].forEach((fsType) => {
     const create = fsType.create;
     fsType.create = function (opts) {
         checkOptions(fsType, opts);
@@ -14,8 +15,9 @@ import ZipFS from "./backend/zip";
 });
 
 export default {
-    memory: InMemory,
-    mountable: MountableFileSystem,
+    native: NativeFS,
+    memory: MemoryFS,
+    mountable: MountableFS,
     overlay: OverlayFS,
     zip: ZipFS
 };

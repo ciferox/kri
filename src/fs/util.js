@@ -6,9 +6,7 @@ import levenshtein from "./levenshtein";
 import * as path from "path";
 export function deprecationMessage(print, fsName, opts) {
     if (print) {
-        // tslint:disable-next-line:no-console
         console.warn(`[${fsName}] Direct file system constructor usage is deprecated for this file system, and will be removed in the next major version. Please use the '${fsName}.Create(${JSON.stringify(opts)}, callback)' method instead. See https://github.com/jvilk/BrowserFS/issues/176 for more details.`);
-        // tslint:enable-next-line:no-console
     }
 }
 
@@ -19,6 +17,7 @@ export function deprecationMessage(print, fsName, opts) {
 export function fail() {
     throw new Error("BFS has reached an impossible code path; please file a bug.");
 }
+
 /**
  * Synchronous recursive makedir.
  * @hidden
@@ -149,8 +148,8 @@ export function bufferValidator(v) {
  * @hidden
  */
 export function checkOptions(fsType, opts) {
-    const optsInfo = fsType.Options;
-    const fsName = fsType.Name;
+    const optsInfo = fsType.options;
+    const fsName = fsType.name;
 
     // Check for required options.
     for (const optName in optsInfo) {

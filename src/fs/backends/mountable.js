@@ -1,11 +1,12 @@
 /* eslint-disable adone/no-null-comp */
 /* eslint-disable func-style */
 import { BaseFileSystem } from "../file_system";
-import InMemoryFileSystem from "./memory";
+import MemoryFS from "./memory";
 import { ApiError, ErrorCode } from "../api_error";
 import fs from "../index";
 import * as path from "path";
 import { mkdirpSync } from "../util";
+
 /**
  * The MountableFileSystem allows you to mount multiple backend types or
  * multiple instantiations of the same backend into a single file system tree.
@@ -50,7 +51,7 @@ import { mkdirpSync } from "../util";
  *
  * With no mounted file systems, `MountableFileSystem` acts as a simple `InMemory` filesystem.
  */
-export default class MountableFileSystem extends BaseFileSystem {
+export default class MountableFS extends BaseFileSystem {
     /**
      * Creates a new, empty MountableFileSystem.
      */
@@ -67,12 +68,12 @@ export default class MountableFileSystem extends BaseFileSystem {
     /**
      * Creates a MountableFileSystem instance with the given options.
      */
-    static create(opts) {
-        const imfs = InMemoryFileSystem.create();
+    static create(options = {}) {
+        const imfs = MemoryFS.create();
         if (imfs) {
-            const fs = new MountableFileSystem(imfs);
-            Object.keys(opts).forEach((mountPoint) => {
-                fs.mount(mountPoint, opts[mountPoint]);
+            const fs = new MountableFS(imfs);
+            Object.keys(options).forEach((mountPoint) => {
+                fs.mount(mountPoint, options[mountPoint]);
             });
             return fs;
         }
@@ -141,7 +142,7 @@ export default class MountableFileSystem extends BaseFileSystem {
 
     // Global information methods
     getName() {
-        return MountableFileSystem.Name;
+        return MountableFS.name;
     }
 
     diskSpace(path, cb) {
@@ -286,7 +287,7 @@ export default class MountableFileSystem extends BaseFileSystem {
         });
     }
 
-    realpathSync(p, cache) {
+    realpathSync(p, options) {
         const fsInfo = this._getFs(p);
         try {
             const mountedPath = fsInfo.fs.realpathSync(fsInfo.path, {});
@@ -297,7 +298,7 @@ export default class MountableFileSystem extends BaseFileSystem {
         }
     }
 
-    realpath(p, cache, cb) {
+    realpath(p, options, cb) {
         const fsInfo = this._getFs(p);
         fsInfo.fs.realpath(fsInfo.path, {}, (err, rv) => {
             if (err) {
@@ -347,66 +348,54 @@ export default class MountableFileSystem extends BaseFileSystem {
         return false;
     }
 }
-MountableFileSystem.Name = "MountableFileSystem";
-MountableFileSystem.Options = {};
+MountableFS.options = {};
 /**
  * Tricky: Define all of the functions that merely forward arguments to the
  * relevant file system, or return/throw an error.
  * Take advantage of the fact that the *first* argument is always the path, and
  * the *last* is the callback function (if async).
- * @todo Can use numArgs to make proxying more efficient.
  * @hidden
  */
-function defineFcn(name, isSync, numArgs) {
+function defineFcn(name, isSync) {
     if (isSync) {
         return function (...args) {
             const path = args[0];
             const rv = this._getFs(path);
             args[0] = rv.path;
-            try {
-                return rv.fs[name].apply(rv.fs, args);
-            } catch (e) {
-                this.standardizeError(e, rv.path, path);
-                throw e;
-            }
+            // try {
+            return rv.fs[name].apply(rv.fs, args);
+            // } catch (e) {
+            //     this.standardizeError(e, rv.path, path);
+            //     throw e;
+            // }
         };
     }
     return function (...args) {
         const path = args[0];
         const rv = this._getFs(path);
         args[0] = rv.path;
-        if (typeof(args[args.length - 1]) === "function") {
-            const cb = args[args.length - 1];
-            args[args.length - 1] = (...args) => {
-                if (args.length > 0 && args[0] instanceof ApiError) {
-                    this.standardizeError(args[0], rv.path, path);
-                }
-                cb.apply(null, args);
-            };
-        }
+        // if (typeof (args[args.length - 1]) === "function") {
+        //     const cb = args[args.length - 1];
+        //     args[args.length - 1] = (...args) => {
+        //         if (args.length > 0 && args[0] instanceof ApiError) {
+        //             this.standardizeError(args[0], rv.path, path);
+        //         }
+        //         cb.apply(null, args);
+        //     };
+        // }
         return rv.fs[name].apply(rv.fs, args);
     };
 
 }
-/**
- * @hidden
- */
+
 const fsCmdMap = [
-    // 1 arg functions
-    ["exists", "unlink", "readlink"],
-    // 2 arg functions
-    ["stat", "mkdir", "truncate"],
-    // 3 arg functions
-    ["open", "readFile", "chmod", "utimes"],
-    // 4 arg functions
-    ["chown"],
-    // 5 arg functions
-    ["writeFile", "appendFile"]
+    "exists", "unlink", "readlink",
+    "stat", "lstat", "mkdir", "truncate",
+    "open", "readFile", "chmod", "utimes", "writeFile",
+    "chown",
+    "appendFile"
 ];
-for (let i = 0; i < fsCmdMap.length; i++) {
-    const cmds = fsCmdMap[i];
-    for (const fnName of cmds) {
-        MountableFileSystem.prototype[fnName] = defineFcn(fnName, false, i + 1);
-        MountableFileSystem.prototype[`${fnName}Sync`] = defineFcn(`${fnName}Sync`, true, i + 1);
-    }
+for (const fnName of fsCmdMap) {
+    MountableFS.prototype[fnName] = defineFcn(fnName, false);
+    MountableFS.prototype[`${fnName}Sync`] = defineFcn(`${fnName}Sync`, true);
 }

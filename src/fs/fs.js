@@ -152,7 +152,6 @@ function nopCb() {
  */
 export default class FS {
     constructor() {
-        /* tslint:enable:variable-name */
         this.F_OK = 0;
         this.R_OK = 4;
         this.W_OK = 2;
@@ -258,27 +257,17 @@ export default class FS {
         }
     }
 
-    /**
-     * Asynchronous `stat`.
-     * @param path
-     * @param callback
-     */
-    stat(path, cb = nopCb) {
+    stat(path, options, cb = nopCb) {
         const newCb = wrapCb(cb, 2);
         try {
-            return assertRoot(this.root).stat(normalizePath(path), false, newCb);
+            return assertRoot(this.root).stat(normalizePath(path), options, newCb);
         } catch (e) {
             return newCb(e);
         }
     }
 
-    /**
-     * Synchronous `stat`.
-     * @param path
-     * @return [BrowserFS.node.fs.Stats]
-     */
-    statSync(path) {
-        return assertRoot(this.root).statSync(normalizePath(path), false);
+    statSync(path, options) {
+        return assertRoot(this.root).statSync(normalizePath(path), options);
     }
 
     /**
@@ -288,10 +277,10 @@ export default class FS {
      * @param path
      * @param callback
      */
-    lstat(path, cb = nopCb) {
+    lstat(path, options, cb = nopCb) {
         const newCb = wrapCb(cb, 2);
         try {
-            return assertRoot(this.root).stat(normalizePath(path), true, newCb);
+            return assertRoot(this.root).lstat(normalizePath(path), options, newCb);
         } catch (e) {
             return newCb(e);
         }
@@ -304,8 +293,8 @@ export default class FS {
      * @param path
      * @return [BrowserFS.node.fs.Stats]
      */
-    lstatSync(path) {
-        return assertRoot(this.root).statSync(normalizePath(path), true);
+    lstatSync(path, options) {
+        return assertRoot(this.root).lstatSync(normalizePath(path), options);
     }
 
     truncate(path, arg2 = 0, cb = nopCb) {
@@ -398,7 +387,7 @@ export default class FS {
             if (!flag.isReadable()) {
                 return newCb(new ApiError(ErrorCode.EINVAL, "Flag passed to readFile must allow for reading."));
             }
-            return assertRoot(this.root).readFile(normalizePath(filename), options.encoding, flag, newCb);
+            return assertRoot(this.root).readFile(normalizePath(filename), { options: options.encoding, flag }, newCb);
         } catch (e) {
             return newCb(e);
         }
@@ -410,7 +399,7 @@ export default class FS {
         if (!flag.isReadable()) {
             throw new ApiError(ErrorCode.EINVAL, "Flag passed to readFile must allow for reading.");
         }
-        return assertRoot(this.root).readFileSync(normalizePath(filename), options.encoding, flag);
+        return assertRoot(this.root).readFileSync(normalizePath(filename), { encoding: options.encoding, flag });
     }
 
     writeFile(filename, data, arg3 = {}, cb = nopCb) {
@@ -422,7 +411,7 @@ export default class FS {
             if (!flag.isWriteable()) {
                 return newCb(new ApiError(ErrorCode.EINVAL, "Flag passed to writeFile must allow for writing."));
             }
-            return assertRoot(this.root).writeFile(normalizePath(filename), data, options.encoding, flag, options.mode, newCb);
+            return assertRoot(this.root).writeFile(normalizePath(filename), data, { encoding: options.encoding, flag, mode: options.mode }, newCb);
         } catch (e) {
             return newCb(e);
         }

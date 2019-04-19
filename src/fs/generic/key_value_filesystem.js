@@ -8,17 +8,13 @@ import * as path from "path";
 import Inode from "../generic/inode";
 import PreloadFile from "../generic/preload_file";
 import { emptyBuffer } from "../util";
-/**
- * @hidden
- */
+
 const ROOT_NODE_ID = "/";
-/**
- * @hidden
- */
+
 let emptyDirNode = null;
+
 /**
  * Returns an empty directory node.
- * @hidden
  */
 function getEmptyDirNode() {
     if (emptyDirNode) {
@@ -26,9 +22,9 @@ function getEmptyDirNode() {
     }
     return emptyDirNode = Buffer.from("{}");
 }
+
 /**
  * Generates a random ID.
- * @hidden
  */
 function GenerateRandomID() {
     // From http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript
@@ -240,10 +236,6 @@ export class SimpleSyncRWTransaction {
     }
 }
 export class SyncKeyValueFile extends PreloadFile {
-    constructor(_fs, _path, _flag, _stat, contents) {
-        super(_fs, _path, _flag, _stat, contents);
-    }
-
     syncSync() {
         if (this.isDirty()) {
             this._fs._syncSync(this.getPath(), this.getBuffer(), this.getStats());
@@ -468,9 +460,8 @@ export class SyncKeyValueFileSystem extends SynchronousFileSystem {
             // BASE CASE #2: Find the item in the root ndoe.
             return readDirectory(this.getINode(tx, parent, ROOT_NODE_ID));
 
-        } else {
-            return readDirectory(this.getINode(tx, parent + path.sep + filename, this._findINode(tx, path.dirname(parent), path.basename(parent))));
         }
+        return readDirectory(this.getINode(tx, parent + path.sep + filename, this._findINode(tx, path.dirname(parent), path.basename(parent))));
     }
 
     /**
@@ -609,10 +600,6 @@ export class SyncKeyValueFileSystem extends SynchronousFileSystem {
     }
 }
 export class AsyncKeyValueFile extends PreloadFile {
-    constructor(_fs, _path, _flag, _stat, contents) {
-        super(_fs, _path, _flag, _stat, contents);
-    }
-
     sync(cb) {
         if (this.isDirty()) {
             this._fs._sync(this.getPath(), this.getBuffer(), this.getStats(), (e) => {
@@ -867,7 +854,7 @@ export class AsyncKeyValueFileSystem extends BaseFileSystem {
         });
     }
 
-    mkdir(p, mode, cb) {
+    mkdir(p, { mode } = {}, cb) {
         const tx = this.store.beginTransaction("readwrite"); const data = Buffer.from("{}");
         this.commitNewFile(tx, p, FileType.DIRECTORY, mode, data, cb);
     }

@@ -8,35 +8,17 @@ import backend from "./backends";
 import * as error from "./api_error";
 import path from "path";
 
-const fs = new FS();
-
 const IGNORE_NAME = ["constructor", "initialize", "getRootFS", "getFdForFile", "nfs", "nfsBackup", "volumes"];
 
-let nfs = null;
-const nfsBackup = {};
-
-const initMount = (volume) => {
-    switch (volume.type) {
-        case "fs":
-            return {
-                fs: volume.type
-            };
-        case "zip":
-            return {
-                fs: volume.type,
-                options: {
-                    zipData: volume.data
-                }
-            };
-        default:
-            throw new Error(`Unknown fs backend: ${volume.fs}`);
-    }
-};
+const nfs = require("fs");
+const nfsCopy = Object.assign({}, nfs); // need for native mounting
+let nfsBackup = null;
 
 class KRIFs {
     constructor() {
         this.volumes = null;
 
+        const fs = new FS();
         Object.getOwnPropertyNames(FS.prototype).forEach((key) => {
             if (typeof fs[key] === "function") {
 
@@ -51,22 +33,36 @@ class KRIFs {
 
     mountVolumes(volumes) {
         this.volumes = volumes;
-        const options = {};
+
+        const mntFs = backend.mountable.create();
+        const nativeFs = backend.native.create({
+            fs: nfsCopy
+        });
+        mntFs.mount("/", nativeFs);
 
         for (const volume of volumes.values()) {
-            options[volume.name] = initMount(volume);
+            let fs;
+            switch (volume.type) {
+                case "zip":
+                    fs = backend[volume.type].create({
+                        data: volume.data
+                    });
+                    break;
+                default:
+                    throw new Error(`Unknown fs backend: ${volume.fs}`);
+            }
+
+            mntFs.mount(volume.name, fs);
         }
 
-        this.initialize(this.createFileSystem({
-            fs: "mountable",
-            options
-        }));
+        this.initialize(mntFs);
     }
 
     patchNative() {
-        if (nfs !== null) {
+        if (nfsBackup !== null) {
             throw new Error("Already patched");
         }
+        nfsBackup = {};
 
         if (global.__kri__) {
             const { internalPatches: patches } = global.__kri__;
@@ -109,11 +105,10 @@ class KRIFs {
         const mappings = new Map();
         for (const vol of this.volumes.values()) {
             if (vol.mapping.length > 0) {
-                mappings.set(vol.mapping, path.join(vol.name, vol.index));
+                mappings.set(vol.mapping, vol.name);
             }
         }
 
-        nfs = require("fs");
         Object.assign(nfsBackup, nfs);
 
         for (const key of Object.getOwnPropertyNames(this).filter((n) => !IGNORE_NAME.includes(n))) {
@@ -121,64 +116,28 @@ class KRIFs {
         }
         nfs.Stats = this.Stats;
 
-        // TODO: unpatch this
-        const mod = require("module");
-        const origResolveFilename = mod.Module._resolveFilename;
-
-        mod.Module._resolveFilename = function (request, parent, isMain, options) {
-            const mapping = mappings.get(request);
-            if (mapping !== undefined) {
-                request = mapping;
-            }
-            const result = origResolveFilename.call(this, request, parent, isMain, options);
-            return result;
-        };
-
-        const util = require("util");
-
-        const origRequire = mod.Module.prototype.require;
-        mod.Module.prototype.require = function (id) {
-            const mapping = mappings.get(id);
-            if (mapping !== undefined) {
-                id = mapping;
-            }
-            const result = origRequire.call(this, id);
-            return result;
-        };
+        if (global.__kri__) {
+            // TODO: unpatch this
+            const mod = require("module");
+            const origResolveFilename = mod.Module._resolveFilename;
+            mod.Module._resolveFilename = function (request, parent, isMain, options) {
+                const parts = request.split(path.sep);
+                const mapping = mappings.get(parts[0]);
+                if (mapping !== undefined) {
+                    request = path.join(mapping, ...parts.slice(1));
+                }
+                return origResolveFilename.call(this, request, parent, isMain, options);
+            };
+        }
     }
 
     unpatchNative() {
-        if (nfs !== null) {
+        if (nfsBackup !== null) {
             for (const key of Object.getOwnPropertyNames(this).filter((n) => !IGNORE_NAME.includes(n))) {
                 nfs[key] = nfsBackup[key];
             }
-            nfs = null;
+            nfsBackup = null;
         }
-    }
-
-    createFileSystem(config) {
-        const fsName = config.fs;
-        if (!fsName) {
-            throw new error.ApiError(error.ErrorCode.EPERM, 'Missing "fs" property on configuration object.');
-        }
-        const options = config.options;
-
-        if (options !== null && typeof (options) === "object") {
-            const props = Object.keys(options).filter((k) => k !== "fs");
-            // Check recursively if other fields have 'fs' properties.
-            for (const p of props) {
-                const d = options[p];
-                if (d !== null && typeof (d) === "object" && d.fs) {
-                    options[p] = this.createFileSystem(d);
-                }
-            }
-        }
-
-        const BackendClass = backend[fsName];
-        if (!BackendClass) {
-            throw new error.ApiError(error.ErrorCode.EPERM, `Unknown file system: ${fsName}`);
-        }
-        return BackendClass.create(options);
     }
 }
 KRIFs.prototype.FS = FS;

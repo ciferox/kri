@@ -4,7 +4,7 @@ const {
 
 const STATUSFILE = "status.json";
 
-export default class StatusFile extends adone.configuration.Generic {
+export default class StatusFile extends adone.configuration.GenericConfig {
     async update(config) {
         try {
             await this.load(STATUSFILE);
