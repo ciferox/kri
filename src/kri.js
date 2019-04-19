@@ -58,7 +58,9 @@ class KRI extends app.Application {
     async onConfigure() {
         !is.windows && this.exitOnSignal("SIGINT");
 
-        this.config = await kri.Configuration.load();
+        this.config = await kri.Configuration.load({
+            cwd: kri.HOME_PATH
+        });
 
         this._configureLogger();
 

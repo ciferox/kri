@@ -12,7 +12,7 @@ const {
 // according to the version of EOF-data format.
 // 
 // There is a special section called 'init'. This section does not have a
-// header and the loader interprets it as a module with one export.
+// header and the loader interprets it as a function body.
 //
 // 0-section structure:
 //

@@ -118,5 +118,5 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
 global.__kri__.volumes = volumes;
 global.__kri__.main = startupFile;
 
-const init = new Function("require ", "__kri__", initCode.toString("utf8"));
+const init = new Function("require", "__kri__", initCode.toString("utf8"));
 init(require, global.__kri__);
