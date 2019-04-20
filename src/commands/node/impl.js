@@ -116,7 +116,7 @@ export default () => class NodeCommand extends Subsystem {
             cli.updateProgress({
                 message: err.message,
                 status: false,
-                clean: true
+                // clean: true
             });
             // console.log(pretty.error(err));
             return 1;
@@ -204,9 +204,10 @@ export default () => class NodeCommand extends Subsystem {
         } catch (err) {
             cli.updateProgress({
                 message: err.message,
-                status: false
+                status: false,
+                clean: true
             });
-            // console.log(pretty.error(err));
+            console.log(pretty.error(err));
             return 1;
         }
     }

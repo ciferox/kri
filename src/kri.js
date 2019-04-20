@@ -73,7 +73,7 @@ class KRI extends app.Application {
         await this._addInstalledSubsystems();
     }
 
-    async run() {        
+    async run() {
         // print usage message by default
         console.log(`${this.helper.getHelpMessage()}\n`);
         return 0;

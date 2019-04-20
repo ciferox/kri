@@ -47,8 +47,6 @@ export default class extends IsomorphicTask {
             status: true
         });
 
-        await fs.writeFile(await fs.tmpName(), result);
-
         return result;
     }
 }

@@ -1,7 +1,7 @@
 const {
     is,
     fast,
-    fs: { readFile, tmpName, rm },
+    fs: { readFile, tmpName, rm, mkdirp },
     realm,
     task: { IsomorphicTask, task },
     std: { path },
@@ -103,9 +103,9 @@ export default class extends IsomorphicTask {
 
         const volume = await readFile(path.join(tmpPath, filename));
 
-        // await rm(tmpPath);
+        await rm(tmpPath);
 
-        return { name, index, volume };
+        return { name, filename, index, volume };
     }
 
     async createDevConfig(cwd) {

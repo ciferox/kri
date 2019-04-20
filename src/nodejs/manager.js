@@ -120,7 +120,9 @@ export default class NodejsManager {
             await adone.promise.delay(500);
             result.downloaded = true;
         } catch (err) {
-            throw new error.Exception(`Could not get ${url}: ${err.response.status}`);
+            progressBar.destroy();
+            console.error(err.stack);
+            // throw new error.Exception(`Could not get ${url}: ${err.message}`);
         }
 
         if (await fs.exists(fullPath)) {

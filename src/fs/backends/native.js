@@ -1,16 +1,16 @@
 import { BaseFileSystem } from "../file_system";
 import { FileType } from "../node_fs_stats";
 import { BaseFile } from "../file";
-import { uint8Array2Buffer, buffer2Uint8array } from "../util";
+import { buffer2Uint8array } from "../util";
 import { ApiError } from "../api_error";
 
 export class NativeFile extends BaseFile {
-    constructor(_fs, _FS, _path, _stream) {
+    constructor(fs, path, stream) {
         super();
-        this._fs = _fs;
-        this._FS = _FS;
-        this._path = _path;
-        this._stream = _stream;
+        this._fs = fs;
+        this._nfs = fs._fs;
+        this._path = path;
+        this._stream = stream;
     }
 
     getPos() {
@@ -30,7 +30,7 @@ export class NativeFile extends BaseFile {
 
     closeSync() {
         try {
-            this._FS.close(this._stream);
+            this._nfs.close(this._stream);
         } catch (e) {
             throw convertError(e, this._path);
         }
@@ -61,7 +61,7 @@ export class NativeFile extends BaseFile {
 
     truncateSync(len) {
         try {
-            this._FS.ftruncate(this._stream.fd, len);
+            this._nfs.ftruncate(this._stream.fd, len);
         } catch (e) {
             throw convertError(e, this._path);
         }
@@ -80,7 +80,7 @@ export class NativeFile extends BaseFile {
             const u8 = buffer2Uint8array(buffer);
             // Emscripten is particular about what position is set to.
             const emPosition = position === null ? undefined : position;
-            return this._FS.write(this._stream, u8, offset, length, emPosition);
+            return this._nfs.write(this._stream, u8, offset, length, emPosition);
         } catch (e) {
             throw convertError(e, this._path);
         }
@@ -99,7 +99,7 @@ export class NativeFile extends BaseFile {
             const u8 = buffer2Uint8array(buffer);
             // Emscripten is particular about what position is set to.
             const emPosition = position === null ? undefined : position;
-            return this._FS.read(this._stream, u8, offset, length, emPosition);
+            return this._nfs.read(this._stream, u8, offset, length, emPosition);
         } catch (e) {
             throw convertError(e, this._path);
         }
@@ -127,7 +127,7 @@ export class NativeFile extends BaseFile {
 
     chownSync(uid, gid) {
         try {
-            this._FS.fchown(this._stream.fd, uid, gid);
+            this._nfs.fchown(this._stream.fd, uid, gid);
         } catch (e) {
             throw convertError(e, this._path);
         }
@@ -146,7 +146,7 @@ export class NativeFile extends BaseFile {
 
     chmodSync(mode) {
         try {
-            this._FS.fchmod(this._stream.fd, mode);
+            this._nfs.fchmod(this._stream.fd, mode);
         } catch (e) {
             throw convertError(e, this._path);
         }
@@ -204,6 +204,14 @@ export default class NativeFS extends BaseFileSystem {
         return true;
     }
 
+    createWriteStream(path, options) {
+        return this._fs.createWriteStream(path, options);
+    }
+
+    createReadStream(path, options) {
+        return this._fs.createReadStream(path, options);
+    }
+
     mkdir(path, options, callback) {
         this._fs.mkdir(path, options, callback);
     }
@@ -218,6 +226,14 @@ export default class NativeFS extends BaseFileSystem {
 
     renameSync(oldPath, newPath) {
         this._fs.renameSync(oldPath, newPath);
+    }
+
+    access(path, mode, callback) {
+        this._fs.access(path, mode, callback);
+    }
+
+    accessSync(path, mode) {
+        return this._fs.accessSync(path, mode);
     }
 
     stat(path, options, callback) {
@@ -237,11 +253,16 @@ export default class NativeFS extends BaseFileSystem {
     }
 
     open(path, flags, mode, callback) {
-        this._fs.open(path, flags, mode, callback);
+        this._fs.open(path, flags.getFlagString(), mode, callback);
     }
 
-    openSync(p, flags, mode) {
-        return this._fs.open(p, flags, mode);
+    openSync(path, flags, mode) {
+        const stream = this._fs.openSync(path, flags.getFlagString(), mode);
+        if (this._fs.isDir(stream.node.mode)) {
+            this._fs.close(stream);
+            throw ApiError.EISDIR(p);
+        }
+        return new NativeFile(this, path, stream);
     }
 
     unlinkSync(p) {
@@ -252,8 +273,12 @@ export default class NativeFS extends BaseFileSystem {
         this._fs.rmdirSync(p);
     }
 
-    readdirSync(p, options) {
-        return this._fs.readdirSync(p, options);
+    readdir(path, options, callback) {
+        return this._fs.readdir(path, options, callback);
+    }
+
+    readdirSync(path, options) {
+        return this._fs.readdirSync(path, options);
     }
 
     truncateSync(p, len) {

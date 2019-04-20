@@ -158,7 +158,7 @@ export default class EOFBuilder {
             const hdrSize = 4 + 4 + 4 + 4 + 4 + 4 + 4 * 2 + vol.type.length + vol.name.length + vol.mapping.length + vol.index.length;
             const volHeader = Buffer.allocUnsafe(hdrSize);
             volHeader.writeUInt32BE(hdrSize, 0);
-            volHeader.writeUInt32BE(vol.data.length, 4);
+            volHeader.writeUInt32BE(Buffer.byteLength(vol.data), 4);
             volHeader.writeUInt32BE(0, 8); // reserved
             volHeader.writeUInt32BE(0, 12); // reserved
             volHeader.writeUInt32BE(0, 16);
@@ -171,11 +171,11 @@ export default class EOFBuilder {
             vol.header = volHeader;
 
             if (i === 0) {
-                header.writeUInt32BE(vol.header.length, 16);
-                header.writeUInt32BE(vol.data.length + vol.header.length, 20);
+                header.writeUInt32BE(Buffer.byteLength(vol.header), 16);
+                header.writeUInt32BE(Buffer.byteLength(vol.data) + Buffer.byteLength(vol.header), 20);
             } else {
-                prevVol.header.writeUInt32BE(vol.header.length, 16);
-                prevVol.header.writeUInt32BE(vol.data.length + vol.header.length, 20);
+                prevVol.header.writeUInt32BE(Buffer.byteLength(vol.header), 16);
+                prevVol.header.writeUInt32BE(Buffer.byteLength(vol.data) + Buffer.byteLength(vol.header), 20);
             }
             prevVol = vol;
         }

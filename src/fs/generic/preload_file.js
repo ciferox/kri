@@ -5,6 +5,7 @@ import Stats from "../node_fs_stats";
 import { ApiError, ErrorCode } from "../api_error";
 import fs from "../index";
 import { emptyBuffer } from "../util";
+
 /**
  * An implementation of the File interface that operates on a file that is
  * completely in-memory. PreloadFiles are backed by a Buffer.
@@ -368,10 +369,6 @@ export default class PreloadFile extends BaseFile {
  * Doesn't sync to anything, so it works nicely for memory-only files.
  */
 export class NoSyncFile extends PreloadFile {
-    constructor(_fs, _path, _flag, _stat, contents) {
-        super(_fs, _path, _flag, _stat, contents);
-    }
-
     /**
      * Asynchronous sync. Doesn't do anything, simply calls the cb.
      * @param [Function(BrowserFS.ApiError)] cb

@@ -8,14 +8,12 @@ import { NoSyncFile } from "../generic/preload_file";
 import { arrayish2Buffer, copyingSlice, bufferValidator } from "../util";
 import ExtendedASCII from "../generic/extended_ascii";
 
-/**
- * @hidden
- */
+
 const { inflateRawSync } = require("zlib");
 import { FileIndex, DirInode, FileInode, isDirInode, isFileInode } from "../generic/file_index";
+
 /**
  * Maps CompressionMethod => function that decompresses.
- * @hidden
  */
 const decompressionMethods = {};
 /**
@@ -576,34 +574,42 @@ export class EndOfCentralDirectory {
         }
     }
 
+    // number of this disk
     diskNumber() {
         return this.data.readUInt16LE(4);
     }
 
+    // number of the disk with the start of the central directory
     cdDiskNumber() {
         return this.data.readUInt16LE(6);
     }
 
+    // total number of entries in the central directory on this disk
     cdDiskEntryCount() {
         return this.data.readUInt16LE(8);
     }
 
+    // total number of entries in the central directory 
     cdTotalEntryCount() {
         return this.data.readUInt16LE(10);
     }
 
+    // size of the central directory
     cdSize() {
         return this.data.readUInt32LE(12);
     }
 
+    // offset of start of central directory with respect to the starting disk number
     cdOffset() {
         return this.data.readUInt32LE(16);
     }
 
+    // .ZIP file comment length
     cdZipCommentLength() {
         return this.data.readUInt16LE(20);
     }
 
+    // .ZIP file comment
     cdZipComment() {
         // Assuming UTF-8. The specification doesn't specify.
         return safeToString(this.data, true, 22, this.cdZipCommentLength());
@@ -624,6 +630,7 @@ export class ZipTOC {
         this.data = data;
     }
 }
+
 /**
  * Zip file-backed filesystem
  * Implemented according to the standard:
@@ -707,13 +714,13 @@ export default class ZipFS extends SynchronousFileSystem {
         // read thread every entry in the file to get to it. :(
         // These are *negative* offsets from the end of the file.
         const startOffset = 22;
-        const endOffset = Math.min(startOffset + 0xFFFF, data.length - 1);
+        const endOffset = data.length - Math.min(startOffset + 0xFFFF, data.length - 1);
         // There's not even a byte alignment guarantee on the comment so we need to
         // search byte by byte. *grumble grumble*
-        for (let i = startOffset; i < endOffset; i++) {
+        for (let i = data.length - startOffset; i >= endOffset; i--) {
             // Magic number: EOCD Signature
-            if (data.readUInt32LE(data.length - i) === 0x06054b50) {
-                return new EndOfCentralDirectory(data.slice(data.length - i));
+            if (data.readUInt32LE(i) === 0x06054b50) {
+                return new EndOfCentralDirectory(data.slice(i));
             }
         }
         throw new ApiError(ErrorCode.EINVAL, "Invalid ZIP file: Could not locate End of Central Directory signature.");
@@ -740,27 +747,37 @@ export default class ZipFS extends SynchronousFileSystem {
     static _computeIndex(data) {
         const index = new FileIndex();
         const eocd = ZipFS._getEOCD(data);
+        if (eocd.diskNumber() !== 0) {
+            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support multi-disk zip files");
+        }
         if (eocd.diskNumber() !== eocd.cdDiskNumber()) {
-            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support spanned zip files.");
+            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support spanned zip files");
         }
-        const cdPtr = eocd.cdOffset();
-        if (cdPtr === 0xFFFFFFFF) {
-            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support Zip64.");
+        const commentLength = eocd.cdZipCommentLength();
+        const expectedCommentLength = eocd.data.length - 22;
+        if (commentLength !== expectedCommentLength) {
+            throw new ApiError(ErrorCode.EINVAL, `Invalid comment length. expected: ${expectedCommentLength}. found: ${commentLength}`);
         }
-        const cdEnd = cdPtr + eocd.cdSize();
-        return ZipFS._computeIndexResponsive(data, index, cdPtr, cdEnd, [], eocd);
+
+        const cdOffset = eocd.cdOffset();
+        if (eocd.cdTotalEntryCount() === 0xffff || cdOffset === 0xFFFFFFFF) { // ZIP64
+            throw new ApiError(ErrorCode.EINVAL, "ZipFS does not support Zip64");
+        }
+
+        const cdEndOffset = cdOffset + eocd.cdSize();
+        return ZipFS._computeIndexResponsive(data, index, cdOffset, cdEndOffset, [], eocd);
     }
 
-    static _computeIndexResponsive(data, index, cdPtr, cdEnd, cdEntries, eocd) {
-        if (cdPtr < cdEnd) {
+    static _computeIndexResponsive(data, index, cdOffset, cdEnd, cdEntries, eocd) {
+        if (cdOffset < cdEnd) {
             let count = 0;
-            while (count++ < 200 && cdPtr < cdEnd) {
-                const cd = new CentralDirectory(data, data.slice(cdPtr));
+            while (count++ < 200 && cdOffset < cdEnd) {
+                const cd = new CentralDirectory(data, data.slice(cdOffset));
                 ZipFS._addToIndex(cd, index);
-                cdPtr += cd.totalSize();
+                cdOffset += cd.totalSize();
                 cdEntries.push(cd);
             }
-            return ZipFS._computeIndexResponsive(data, index, cdPtr, cdEnd, cdEntries, eocd);
+            return ZipFS._computeIndexResponsive(data, index, cdOffset, cdEnd, cdEntries, eocd);
         }
         return new ZipTOC(index, cdEntries, eocd, data);
     }
@@ -910,7 +927,7 @@ ZipFS.options = {
 };
 ZipFS.CompressionMethod = CompressionMethod;
 ZipFS.RegisterDecompressionMethod(CompressionMethod.DEFLATE, (data, compressedSize, uncompressedSize) => {
-    return arrayish2Buffer(inflateRawSync(data.slice(0, compressedSize), { chunkSize: uncompressedSize }));
+    return arrayish2Buffer(inflateRawSync(data.slice(0, compressedSize), { chunkSize: Math.max(64, uncompressedSize) }));
 });
 ZipFS.RegisterDecompressionMethod(CompressionMethod.STORED, (data, compressedSize, uncompressedSize) => {
     return copyingSlice(data, 0, uncompressedSize);

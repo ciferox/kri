@@ -48,6 +48,9 @@ export class FileFlag {
      * @throw when the flag string is invalid
      */
     static getFileFlag(flagStr) {
+        if (flagStr === undefined) {
+            flagStr = "r";
+        }
         // Check cache first.
         if (FileFlag.flagCache.hasOwnProperty(flagStr)) {
             return FileFlag.flagCache[flagStr];

@@ -580,7 +580,11 @@ export default class FS {
     }
 
     write(fd, arg2, arg3, arg4, arg5, cb = nopCb) {
-        let buffer; let offset; let length; let position = null;
+        let buffer;
+        let offset;
+        let length;
+        let position = null;
+
         if (typeof arg2 === "string") {
             // Signature 1: (fd, string, [position?, [encoding?]], cb?)
             let encoding = "utf8";
@@ -861,11 +865,11 @@ export default class FS {
      * @param path
      * @param callback
      */
-    readdir(path, cb = nopCb) {
+    readdir(path, options, cb = nopCb) {
         const newCb = wrapCb(cb, 2);
         try {
             path = normalizePath(path);
-            assertRoot(this.root).readdir(path, newCb);
+            assertRoot(this.root).readdir(path, options, newCb);
         } catch (e) {
             newCb(e);
         }
@@ -876,9 +880,9 @@ export default class FS {
      * @param path
      * @return [String[]]
      */
-    readdirSync(path) {
+    readdirSync(path, options) {
         path = normalizePath(path);
-        return assertRoot(this.root).readdirSync(path);
+        return assertRoot(this.root).readdirSync(path, options);
     }
 
     // SYMLINK METHODS
@@ -1153,20 +1157,25 @@ export default class FS {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
-    access(path, arg2, cb = nopCb) {
-        throw new ApiError(ErrorCode.ENOTSUP);
+    access(path, mode, callback = nopCb) {
+        const newCb = wrapCb(callback, 2);
+        try {
+            return assertRoot(this.root).access(normalizePath(path), mode, newCb);
+        } catch (e) {
+            return newCb(e);
+        }
     }
 
     accessSync(path, mode) {
-        throw new ApiError(ErrorCode.ENOTSUP);
+        return assertRoot(this.root).accessSync(normalizePath(path), mode);
     }
 
     createReadStream(path, options) {
-        throw new ApiError(ErrorCode.ENOTSUP);
+        return assertRoot(this.root).createReadStream(path, options);
     }
 
     createWriteStream(path, options) {
-        throw new ApiError(ErrorCode.ENOTSUP);
+        return assertRoot(this.root).createWriteStream(path, options);
     }
 
     /**

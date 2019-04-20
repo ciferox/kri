@@ -126,7 +126,8 @@ class KRIFs {
                 if (mapping !== undefined) {
                     request = path.join(mapping, ...parts.slice(1));
                 }
-                return origResolveFilename.call(this, request, parent, isMain, options);
+                const res = origResolveFilename.call(this, request, parent, isMain, options);
+                return res;
             };
         }
     }

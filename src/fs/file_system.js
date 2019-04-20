@@ -97,11 +97,15 @@ export class BaseFileSystem {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
-    stat(p, options, cb) {
+    access(path, mode, cb) {
         cb(new ApiError(ErrorCode.ENOTSUP));
     }
 
-    lstat(p, options, cb) {
+    accessSync(path, mode) {
+        throw new ApiError(ErrorCode.ENOTSUP);
+    }
+
+    stat(p, options, cb) {
         cb(new ApiError(ErrorCode.ENOTSUP));
     }
 
@@ -109,7 +113,19 @@ export class BaseFileSystem {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 
+    lstat(p, options, cb) {
+        cb(new ApiError(ErrorCode.ENOTSUP));
+    }
+
     lstatSync(p, options) {
+        throw new ApiError(ErrorCode.ENOTSUP);
+    }
+
+    createWriteStream(path, options) {
+        throw new ApiError(ErrorCode.ENOTSUP);
+    }
+
+    createReadStream(path, options) {
         throw new ApiError(ErrorCode.ENOTSUP);
     }
 

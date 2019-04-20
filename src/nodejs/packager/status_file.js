@@ -14,7 +14,7 @@ export default class StatusFile extends adone.configuration.GenericConfig {
 
         if (is.plainObject(config)) {
             this.assign(config);
-            await this.save(STATUSFILE, null, {
+            await this.save(STATUSFILE, {
                 space: "    "
             });
         }

@@ -20,14 +20,7 @@ const {
 const { NodejsManager, NodejsCompiler } = nodejs;
 
 const DEFAULT_CONFIGURE_FLAGS = [
-    `--dest-cpu=${process.arch}`,
-    "--fully-static",
-    "--without-node-options",
-    "--without-npm",
-    "--without-inspector",
-    "--experimental-http-parser",
-    //"--release-urlbase="
-    ...(adone.is.linux ? ["--enable-lto"] : [])
+    `--dest-cpu=${process.arch}`
 ];
 
 const DEFAULT_MAKE_FLAGS = ["-j8"];
@@ -215,7 +208,11 @@ export default class NodejsPackager extends task.TaskManager {
 
         this.privatePath = path.join(sourcesPath, ".kri");
         this.backupPath = path.join(this.privatePath, "backup");
+        this.buildPath = path.join(this.privatePath, "build");
         await fs.mkdirp(this.privatePath);
+
+        // delete previous build directory
+        await fs.rm(this.buildPath);
 
         this.statusfile = new StatusFile({
             cwd: this.privatePath
@@ -335,24 +332,29 @@ export default class NodejsPackager extends task.TaskManager {
     async #buildEof() {
         const eofBuilder = new EOFBuilder();
 
-        eofBuilder.addInit(await this.runAndWait("buildInit", {
+        const initCode = await this.runAndWait("buildInit", {
             cwd: this.cwd,
             path: path.join(__dirname, "assets", "init.js"),
             options: this.options
-        }));
+        })
+        eofBuilder.addInit(initCode);
 
-        // startup volume
-        await this.#addVolume(eofBuilder, {
-            type: "zip",
-            //mapping: "", // ???
-            input: this.inputRealm ? this.inputRealm : this.options.input,
-            startup: true
+        this.#saveToBuild({
+            name: "init.js",
+            data: initCode
         });
 
-        // adone volumes
-        // console.log(adone.inspect(this.kriConfig.volumes));
+        const volumes = [
+            {
+                type: "zip",
+                //mapping: "", // ???
+                input: this.inputRealm ? this.inputRealm : this.options.input,
+                startup: true
+            }
+        ]
+
         for (const [name, { input, type, mapping }] of Object.entries(this.kriConfig.volumes)) {
-            await this.#addVolume(eofBuilder, {
+            volumes.push({
                 input,
                 type,
                 mapping,
@@ -360,24 +362,45 @@ export default class NodejsPackager extends task.TaskManager {
             });
         }
 
+        await this.#addVolumes(eofBuilder, volumes);
+
         eofBuilder.build();
         this.eof = eofBuilder;
+
+        await new Promise((resolve, reject) => {
+            this.eof.toStream().pipe(fs.createWriteStream(path.join(this.buildPath, "eof")))
+                .on("error", reject)
+                .on("close", resolve);
+        });
     }
 
-    async #addVolume(eofBuilder, { input, type, mapping, startup } = {}) {
-        const { name, volume, index } = await this.runAndWait("volumeCreate", {
-            input,
-            startup
-        });
+    async #addVolumes(eofBuilder, volumes) {
+        for (const { input, type, mapping, startup } of volumes) {
+            const { name, filename, volume, index } = await this.runAndWait("volumeCreate", {
+                input,
+                startup
+            });
+    
+            await eofBuilder.addVolume({
+                type, 
+                name,
+                mapping,
+                volume,
+                index,
+                startup
+            });
 
-        await eofBuilder.addVolume({
-            type, 
-            name,
-            mapping,
-            volume,
-            index,
-            startup
-        });
+            await this.#saveToBuild({
+                name: filename,
+                data: volume
+            });
+        }
+    }
+
+    async #saveToBuild({ name, data  } = {}) {
+        const fullPath = path.join(this.buildPath, name);
+        await fs.mkdirp(path.dirname(fullPath));
+        await fs.writeFile(fullPath, data);
     }
 
     async #profit() {

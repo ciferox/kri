@@ -229,7 +229,7 @@ export default class MountableFS extends BaseFileSystem {
         return fs.unlinkSync(oldPath);
     }
 
-    readdirSync(p) {
+    readdirSync(p, options) {
         const fsInfo = this._getFs(p);
         // If null, rootfs did not have the directory
         // (or the target FS is the root fs).
@@ -238,13 +238,13 @@ export default class MountableFS extends BaseFileSystem {
         // Ensure that we list those, too.
         if (fsInfo.fs !== this.rootFs) {
             try {
-                rv = this.rootFs.readdirSync(p);
+                rv = this.rootFs.readdirSync(p, options);
             } catch (e) {
                 // Ignore.
             }
         }
         try {
-            const rv2 = fsInfo.fs.readdirSync(fsInfo.path);
+            const rv2 = fsInfo.fs.readdirSync(fsInfo.path, options);
             if (rv === null) {
                 return rv2;
             }
@@ -261,12 +261,12 @@ export default class MountableFS extends BaseFileSystem {
         }
     }
 
-    readdir(p, cb) {
+    readdir(p, options, cb) {
         const fsInfo = this._getFs(p);
-        fsInfo.fs.readdir(fsInfo.path, (err, files) => {
+        fsInfo.fs.readdir(fsInfo.path, options, (err, files) => {
             if (fsInfo.fs !== this.rootFs) {
                 try {
-                    const rv = this.rootFs.readdirSync(p);
+                    const rv = this.rootFs.readdirSync(p, options);
                     if (files) {
                         // Filter out duplicates.
                         files = files.concat(rv.filter((val) => !files.includes(val)));
@@ -389,8 +389,9 @@ function defineFcn(name, isSync) {
 }
 
 const fsCmdMap = [
+    "createWriteStream", "createReadStream",
     "exists", "unlink", "readlink",
-    "stat", "lstat", "mkdir", "truncate",
+    "access", "stat", "lstat", "mkdir", "truncate",
     "open", "readFile", "chmod", "utimes", "writeFile",
     "chown",
     "appendFile"

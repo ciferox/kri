@@ -1,4 +1,5 @@
 import { ApiError, ErrorCode } from "./api_error";
+
 /**
  * Base class that contains shared implementations of functions for the file
  * object.
