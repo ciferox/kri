@@ -8,7 +8,6 @@ const kri = {
 adone.lazify({
     package: "../package.json",
     Configuration: "adone/lib/app/configuration",
-    fs: "./fs",
     nodejs: "./nodejs"
 }, kri, require);
 

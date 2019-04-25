@@ -334,7 +334,6 @@ export default class NodejsPackager extends task.TaskManager {
 
         const initCode = await this.runAndWait("buildInit", {
             cwd: this.cwd,
-            path: path.join(__dirname, "assets", "init.js"),
             options: this.options
         })
         eofBuilder.addInit(initCode);

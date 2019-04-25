@@ -1,7 +1,7 @@
 {
   "name": "kri",
   "description": "Monadic form of ADONE",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "author": "taaliman <smaxim@ciferox.com>",
   "license": "Apache-2.0",
   "homepage": "https://adone.io/",
@@ -15,13 +15,18 @@
   "bin": "bin/kri.js",
   "main": "lib",
   "devDependencies": {
-    "eslint": "latest",
+    "@babel/core": "^7.4.3",
+    "@babel/plugin-proposal-class-properties": "^7.4.0",
     "babel-eslint": "latest",
+    "eslint": "latest",
     "eslint-plugin-adone": "latest",
     "eslint-plugin-babel": "latest",
-    "eslint-plugin-import": "latest",
     "eslint-plugin-flowtype": "latest",
+    "eslint-plugin-import": "latest",
     "rollup": "latest",
-    "rollup-plugin-cleanup": "latest"
+    "rollup-plugin-babel": "^4.3.2",
+    "rollup-plugin-cleanup": "latest",
+    "rollup-plugin-commonjs": "^9.3.4",
+    "rollup-plugin-node-resolve": "^4.2.3"
   }
 }
