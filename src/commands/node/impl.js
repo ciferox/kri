@@ -5,14 +5,12 @@ const {
         Subsystem,
         command
     },
+    nodejs,
     semver,
     pretty,
     std
 } = adone;
 const { chalk, style, chalkify } = cli;
-
-const { nodejs } = kri;
-
 
 const activeStyle = chalkify("bold.underline", chalk);
 const cachedStyle = chalkify("#388E3C", chalk);
@@ -24,7 +22,7 @@ const IGNORE_FILES = ["LICENSE", "CHANGELOG.md", "README.md"];
 
 export default () => class NodeCommand extends Subsystem {
     onConfigure() {
-        this.nodejsManager = new nodejs.NodejsManager();
+        this.nodejsManager = new nodejs.NodejsManager(kri.PACKAGER_CONFIG);
     }
 
     @command({
@@ -205,9 +203,9 @@ export default () => class NodeCommand extends Subsystem {
             cli.updateProgress({
                 message: err.message,
                 status: false,
-                clean: true
+                // clean: true
             });
-            console.log(pretty.error(err));
+            // console.log(pretty.error(err));
             return 1;
         }
     }
@@ -353,7 +351,7 @@ export default () => class NodeCommand extends Subsystem {
                     filter: (src, item) => !IGNORE_FILES.includes(item)
                 });
 
-                await fs.rm(std.path.dirname(unpackedPath));
+                await fs.remove(std.path.dirname(unpackedPath));
 
                 cli.updateProgress({
                     message: `Node.js ${style.primary(version)} successfully activated`,

@@ -45,26 +45,20 @@
             "src": "src/commands/**/*.js",
             "dst": "lib/commands"
         },
-        "fs": {
-            "description": "Virtual file system",
-            "task": "transpile",
-            "src": "src/fs/**/*.js",
-            "dst": "lib/fs"
-        },
-        "nodejs": {
-            "description": "Framework for managing of Node.js",
+        "packager": {
+            "description": "Node.js packaging",
             "task": "transpile",
             "src": [
-                "src/nodejs/**/*.js",
-                "!src/nodejs/packager/assets/**/*"
+                "src/packager/**/*.js",
+                "!src/packager/assets/**/*"
             ],
-            "dst": "lib/nodejs"
+            "dst": "lib/packager"
         },
         "packagerAssets": {
             "description": "Packager assets",
             "task": "copy",
-            "src": "src/nodejs/packager/assets/**/*",
-            "dst": "lib/nodejs/packager/assets"
+            "src": "src/packager/assets/**/*",
+            "dst": "lib/packager/assets"
         },
         "tasks": {
             "description": "Realm tasks",

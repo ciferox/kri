@@ -4,15 +4,13 @@ const {
     app: {
         Subsystem,
         command
-    }
+    },
+    nodejs
 } = adone;
-
-const { nodejs } = kri;
-
 
 export default class PackageCommand extends Subsystem {
     onConfigure() {
-        this.nodejsManager = new nodejs.NodejsManager();
+        this.nodejsManager = new nodejs.NodejsManager(kri.PACKAGER_CONFIG);
     }
 
     @command({
@@ -78,7 +76,7 @@ export default class PackageCommand extends Subsystem {
     })
     async create(args, opts) {
         try {
-            const packager = new nodejs.NodejsPackager({
+            const packager = new kri.packager.NodejsPackager({
                 input: args.get("input"),
                 ...opts.getAll(),
                 manager: this.nodejsManager,
