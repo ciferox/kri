@@ -328,6 +328,8 @@ export default class NodejsPackager extends task.TaskManager {
     }
 
     async #buildEof() {
+        await adone.promise.delay(1);
+
         const eofBuilder = new EOFBuilder();
 
         const initCode = await this.runAndWait("buildInit", {
@@ -339,6 +341,10 @@ export default class NodejsPackager extends task.TaskManager {
         this.#saveToBuild({
             name: "init.js",
             data: initCode
+        });
+
+        this.log({
+            message: "preparing volumes"
         });
 
         const volumes = [
@@ -361,6 +367,15 @@ export default class NodejsPackager extends task.TaskManager {
 
         await this.#addVolumes(eofBuilder, volumes);
 
+        this.log({
+            message: "volumes added",
+            status: true
+        });
+
+        this.log({
+            message: "building eof"
+        });
+
         eofBuilder.build();
         this.eof = eofBuilder;
 
@@ -368,6 +383,11 @@ export default class NodejsPackager extends task.TaskManager {
             this.eof.toStream().pipe(fs.createWriteStream(path.join(this.buildPath, "eof")))
                 .on("error", reject)
                 .on("close", resolve);
+        });
+
+        this.log({
+            message: "eof successfully builded",
+            status: true
         });
     }
 
@@ -401,6 +421,10 @@ export default class NodejsPackager extends task.TaskManager {
     }
 
     async #profit() {
+        this.log({
+            message: "generating package"
+        });
+
         let outName;
         if (is.string(this.options.nane)) {
             outName = this.options.nane;

@@ -62,8 +62,6 @@ class KRI extends app.Application {
             cwd: kri.HOME_PATH
         });
 
-        this._configureLogger();
-
         // Define command groups.
         const groups = this.config.getGroups();
         for (const group of groups) {
@@ -77,37 +75,6 @@ class KRI extends app.Application {
         // print usage message by default
         console.log(`${this.helper.getHelpMessage()}\n`);
         return 0;
-    }
-
-    _configureLogger() {
-        const {
-            logging: { logger: { format } },
-            cli: { chalk }
-        } = adone;
-
-        adone.app.runtime.logger.configure({
-            level: "verbose",
-            format: format.combine(
-                format.colorize({
-                    config: adone.logging.logger.config.adone
-                }),
-                format.padLevels(),
-                format.printf((info) => {
-                    let result = "";
-                    if (is.string(info.prefix)) {
-                        result += `[${info.prefix}] `;
-                    }
-                    if (is.string(info.icon)) {
-                        result += `${info.icon}  `;
-                    }
-                    result += `${chalk.underline(info.level)}${info.message}`;
-                    return result;
-                })
-            ),
-            transports: [
-                new adone.logging.logger.transport.Console()
-            ]
-        });
     }
 
     async _addInstalledSubsystems() {
@@ -125,5 +92,9 @@ class KRI extends app.Application {
 
 app.run(KRI, {
     useArgs: true,
-    version: kri.package.version
+    version: `KRI: v${kri.package.version}
+ADONE: v${adone.package.version}
+Node.js: ${process.version}
+V8: v${process.versions.v8}
+uv: v${process.versions.uv}`
 });

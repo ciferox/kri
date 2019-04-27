@@ -17,12 +17,17 @@ class KRIInitSubsystem {
         this.fs = new StdFileSystem();
         this.nfs = require("fs");
         this.module = require("module");
+        this.mappings = new Map();
 
         __kri__.initSubsystem = this;
+
+        // define global '__custom_adone_fs__' that will be used in 'adone.fs' instead of default.
+        global.__custom_base_fs__ = this.nfs;
     }
 
     mountVolumes() {
         const volumes = __kri__.volumes;
+        const mountPoints = [];
         for (const volume of volumes.values()) {
             let fs;
             switch (volume.type) {
@@ -35,17 +40,29 @@ class KRIInitSubsystem {
                     throw new Error(`Unknown type of file system: ${volume.fs}`);
             }
 
+            if (volume.mapping.length > 0) {
+                this.mappings.set(volume.mapping, volume.name);
+            }
+
             this.fs.mount(fs, volume.name);
+            mountPoints.push(volume.name);
         }
+
+        this.isVirtual = (filename) => mountPoints.find((prefix) => filename.startsWith(prefix)) !== undefined;
     }
 
     patchInternals() {
         const nfs = this.nfs;
         const fs = this.fs;
+
+        // patch native fs
+
         for (const method of fsMethods) {
             this.nfsBackup[method] = nfs[method];
             nfs[method] = (...args) => fs[method](...args);
         }
+
+        // patch process.binding("fs")
 
         // We have to override this method, because otherwise native readFileSync()
         // will call binding.fstat() with the wrong file descriptor.
@@ -63,6 +80,37 @@ class KRIInitSubsystem {
             }
             return bindingFstat(fd, ...args);
         };
+
+        const { internalPatches: patches } = __kri__;
+        const isVirtual = this.isVirtual;
+        patches.internalModuleReadJSON = function (original, ...args) {
+            const [filepath] = args;
+            if (isVirtual(filepath)) {
+                try {
+                    return fs.readFileSync(filepath, "utf8");
+                } catch (err) {
+                    //
+                }
+            } else {
+                return original.apply(this, args);
+            }
+        };
+
+        patches.internalModuleStat = function (original, ...args) {
+            const [filepath] = args;
+
+            if (isVirtual(filepath)) {
+                try {
+                    const stats = fs.statSync(filepath);
+                    return stats.isDirectory() ? 1 : 0;
+                } catch (err) {
+                    return -err.errno;
+                }
+            }
+            return original.apply(this, args);
+        };
+
+        // patch fs streams
 
         // Override WriteStream.prototype._write() so the correct file descriptor is passed to the binding.writeBuffers(). 
         const writev = function (fd, chunks, position, callback) {
@@ -111,48 +159,10 @@ class KRIInitSubsystem {
             }
         };
 
-        const { internalPatches: patches } = __kri__;
-
-        // TODO: need reimplement
-        const volumePathPrefixes = [...__kri__.volumes.keys()];
-        const isVirtual = (filename) => volumePathPrefixes.find((prefix) => filename.startsWith(prefix)) !== undefined;
-
-        patches.internalModuleReadJSON = function (original, ...args) {
-            const [filepath] = args;
-            if (isVirtual(filepath)) {
-                try {
-                    return fs.readFileSync(filepath, "utf8");
-                } catch (err) {
-                    //
-                }
-            } else {
-                return original.apply(this, args);
-            }
-        };
-
-        // TODO: need optimization
-        patches.internalModuleStat = function (original, ...args) {
-            const [filepath] = args;
-
-            if (isVirtual(filepath)) {
-                try {
-                    const stat = fs.statSync(filepath);
-                    return stat.isDirectory() ? 1 : 0;
-                } catch (err) {
-                    return -err.errno;
-                }
-            }
-            return original.apply(this, args);
-        };
-
-        const mappings = new Map();
-        for (const vol of __kri__.volumes.values()) {
-            if (vol.mapping.length > 0) {
-                mappings.set(vol.mapping, vol.name);
-            }
-        }
+        // patch 'module' 
 
         const mod = this.module;
+        const mappings = this.mappings;
         const origResolveFilename = this.origResolveFilename = mod.Module._resolveFilename;
         mod.Module._resolveFilename = function (request, parent, isMain, options) {
             const parts = request.split("/");
@@ -163,9 +173,6 @@ class KRIInitSubsystem {
             const res = origResolveFilename.call(this, request, parent, isMain, options);
             return res;
         };
-
-        // define global '__custom_adone_fs__' that will be used in 'adone.fs' instead of default.
-        global.__custom_adone_fs__ = this.nfs;
     }
 
     unpatchInternals() {
@@ -174,6 +181,9 @@ class KRIInitSubsystem {
         }
 
         binding.fstat = bindingFstat;
+        const { internalPatches: patches } = __kri__;
+        patches.internalModuleReadJSON = __kri__.noopHook;
+        patches.internalModuleStat = __kri__.noopHook;
 
         this.nfs.WriteStream.prototype._writev = this.origWriteStreamWritev;
         this.module.Module._resolveFilename = this.origResolveFilename;
