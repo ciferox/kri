@@ -22,49 +22,5 @@
     },
     "tasks": {
         "basePath": "lib/tasks"
-    },
-    "scheme": {
-        "app": {
-            "description": "Application",
-            "task": "transpileExe",
-            "src": "src/kri.js",
-            "dst": "bin"
-        },
-        "index": {
-            "description": "Common sources at index location",
-            "src": [
-                "!src/kri.js",
-                "src/*.js"
-            ],
-            "dst": "lib",
-            "task": "transpile"
-        },
-        "commands": {
-            "description": "Common CLI commands",
-            "task": "transpile",
-            "src": "src/commands/**/*.js",
-            "dst": "lib/commands"
-        },
-        "packager": {
-            "description": "Node.js packaging",
-            "task": "transpile",
-            "src": [
-                "src/packager/**/*.js",
-                "!src/packager/assets/**/*"
-            ],
-            "dst": "lib/packager"
-        },
-        "packagerAssets": {
-            "description": "Packager assets",
-            "task": "copy",
-            "src": "src/packager/assets/**/*",
-            "dst": "lib/packager/assets"
-        },
-        "tasks": {
-            "description": "Realm tasks",
-            "src": "src/tasks/**/*.js",
-            "dst": "lib/tasks",
-            "task": "transpile"
-        }
     }
 }

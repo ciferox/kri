@@ -8,7 +8,9 @@ const kri = {
 adone.lazify({
     package: "../package.json",
     Configuration: "adone/lib/app/configuration",
-    packager: "./packager",
+    KRIConfiguration: "./kri_configuration",
+    PrebuiltManager: "./prebuilt_manager",
+    PackageManager: "./package_manager",
     PACKAGER_CONFIG: () => ({
         cache: {
             basePath: adone.path.join(kri.HOME_PATH, "nodejs_cache")

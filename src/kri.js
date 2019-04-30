@@ -29,7 +29,7 @@ const command = (...args) => std.path.join(__dirname, "..", "lib", "commands", .
             subsystem: command("node")
         },
         {
-            name: "package",
+            name: ["package", "pkg"],
             group: "common",
             description: "Manage executable packages",
             subsystem: command("package")

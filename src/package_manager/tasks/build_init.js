@@ -12,14 +12,14 @@ const {
 
 @task("buildInit")
 export default class extends IsomorphicTask {
-    async main({ cwd } = {}) {
+    async main({ } = {}) {
         this.manager.log({
             message: "building 'init'"
         });
 
         const bundle = await rollup({
             onwarn: adone.noop,
-            input: join(kri.ROOT_PATH, "src", "packager", "assets", "init.js"),
+            input: join(kri.ROOT_PATH, "src", "assets", "init.js"),
             plugins: [
                 babel({
                     plugins: [

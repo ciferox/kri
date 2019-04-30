@@ -1,11 +1,10 @@
 const {
     is,
     fast,
-    fs: { readFile, tmpName, remove, mkdirp },
+    fs: { readFile, tmpName, remove },
     realm,
     task: { IsomorphicTask, task },
-    std: { path },
-    util
+    std: { path }
 } = adone;
 
 @task("volumeCreate")
@@ -22,8 +21,7 @@ export default class extends IsomorphicTask {
 
             // Ignore some dev files
             const ignores = [
-                "kri",
-                "dev"
+                "kri"
             ];
 
             const basePath = path.join(input.cwd, ".adone");
@@ -62,11 +60,16 @@ export default class extends IsomorphicTask {
             });
 
             // create temp dev config
-            await this.createDevConfig(targetRealm.getPath());
+            await this.updateDevConfig(targetRealm.getPath());
 
             // build realm
             await targetRealm.connect({ transpile: true });
-            await targetRealm.runAndWait("build");
+            await targetRealm.runAndWait("build", {
+                realm: targetRealm
+            });
+
+            // remove 'tmp' dir
+            await remove(targetRealm.getPath("tmp"));
 
             // remove src dir
             await remove(targetRealm.getPath("src"));
@@ -108,11 +111,19 @@ export default class extends IsomorphicTask {
         return { name, filename, index, volume };
     }
 
-    async createDevConfig(cwd) {
-        const config = new realm.DevConfiguration({
-            cwd
-        });
+    async updateDevConfig(cwd) {
+        let config;
+        try {
+            config = await realm.DevConfiguration.load({
+                cwd
+            });
+        } catch (err) {
+            config = new realm.DevConfiguration({
+                cwd
+            });
+    
+        }
         config.set("superRealm", realm.rootRealm.cwd);
-        await config.save();
+        await config.save(realm.DevConfiguration.configName, { ext: ".json", space: "    " });
     }
 }

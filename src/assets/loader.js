@@ -1,6 +1,8 @@
+const LOADER_VERSION = 1;
+const EOF_VERSION = 1;
+
 const EOF_SIG = Buffer.from("nodeadonekri");
 const EOF_HEADER_SIZE = 64;
-const EOF_VERSION = 1;
 const MAX_VOLUMES = 64;
 
 const fs = require("fs");
@@ -82,7 +84,7 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
     if (!name.startsWith("/")) {
         throw new Error(`Invalid volume mount name: ${name}`);
     }
-    
+
     const type = readString(header, ctx);
     if (!type) {
         throw new Error(`No filesystem type for: ${name}`);
@@ -91,7 +93,7 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
     const mapping = readString(header, ctx);
 
     let index = readString(header, ctx);
-    
+
     if (index.length === 0) {
         index = "index.js";
     }
@@ -117,6 +119,8 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
 
 global.__kri__.volumes = volumes;
 global.__kri__.main = startupFile;
+global.__kri__.EOF_VERSION = EOF_VERSION;
+global.__kri__.LOADER_VERSION = LOADER_VERSION;
 
 const init = new Function("require", "__kri__", initCode.toString("utf8"));
 init(require, global.__kri__);
