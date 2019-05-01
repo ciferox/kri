@@ -44,15 +44,24 @@ const volumes = new Map();
 
 let sectionHdrSize = commonHeader.readUInt32BE(16);
 let sectionSize = commonHeader.readUInt32BE(20);
-const initSize = commonHeader.readUInt32BE(24);
 
+// load 'init' section
+const initSize = commonHeader.readUInt32BE(24);
 if (initSize === 0) {
     throw new Error("Empty 'init' section");
 }
-
 const initCode = Buffer.allocUnsafe(initSize);
 currentPos -= initSize;
 fs.readSync(fd, initCode, 0, initSize, currentPos);
+
+// load 'data' section
+const dataSize = commonHeader.readUInt32BE(28);
+let data;
+if (dataSize > 0) {
+    data = Buffer.allocUnsafe(dataSize);
+    currentPos -= dataSize;
+    fs.readSync(fd, data, 0, dataSize, currentPos);
+}
 
 let i = 0;
 let startupFile = null;
@@ -64,7 +73,6 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
     const header = section.slice(0, sectionHdrSize);
 
     const headerSize = header.readUInt32BE(0);
-    // console.log("another hdr size", headerSize);
 
     if (headerSize !== sectionHdrSize) {
         throw new Error("Invalid volume header size");
@@ -98,13 +106,13 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
         index = "index.js";
     }
 
-    const data = section.slice(sectionHdrSize);
+    const volumeData = section.slice(sectionHdrSize);
     volumes.set(name, {
         type,
         name,
         mapping,
         index,
-        data
+        data: volumeData
     });
 
     if (i === 0) {
@@ -117,10 +125,14 @@ while (sectionSize > 0 && sectionHdrSize > 0) {
     i++;
 }
 
+if (i !== volumesNum) {
+    throw new Error(`Invalid number of volumes: expected ${volumesNum}, but got ${i}`);
+}
+
 global.__kri__.volumes = volumes;
 global.__kri__.main = startupFile;
 global.__kri__.EOF_VERSION = EOF_VERSION;
 global.__kri__.LOADER_VERSION = LOADER_VERSION;
 
-const init = new Function("require", "__kri__", initCode.toString("utf8"));
-init(require, global.__kri__);
+const init = new Function("require", "__kri__", "__data__", initCode.toString("utf8"));
+init(require, global.__kri__, data);

@@ -20,11 +20,12 @@ const {
 // ------------------------------------------------------------------
 // signature                           0      12    'nodeadonekri'
 // version of EOF-data format         12       2    1
-// number of volumes                  14       2
+// number of sections/volumes         14       2
 // first section header size          16       4
 // first section size                 20       4
 // 'init' section size                24       4
-// reserved                        28-63
+// 'data' section size                28       4    0
+// reserved                        32-63
 //
 // All other sections represent volumes with header and data.
 // First volume (with index 0) is a bootable (main app module/realm).
@@ -59,12 +60,17 @@ const writeString = (str, buff, offset) => {
 export default class EOFBuilder {
     constructor() {
         this.init = Buffer.alloc(0);
+        this.data = Buffer.alloc(0);
         this.volumes = [];
         this.builded = false;
     }
 
     addInit(data) {
         this.init = data;
+    }
+
+    addData(data) {
+        this.data = data;
     }
 
     /**
@@ -151,6 +157,7 @@ export default class EOFBuilder {
         header.writeUInt32BE(0, 16);
         header.writeUInt32BE(0, 20);
         header.writeUInt32BE(Buffer.byteLength(this.init), 24);
+        header.writeUInt32BE(Buffer.byteLength(this.data), 28);
 
         let prevVol;
         for (let i = 0; i < this.volumes.length; i++) {
@@ -194,7 +201,10 @@ export default class EOFBuilder {
             readable.push(vol.header);
             readable.push(vol.data);
         }
-
+ 
+        if (this.data.length > 0) {
+            readable.push(this.data);
+        }
         readable.push(this.init);
         readable.push(this.header);
         readable.push(null);

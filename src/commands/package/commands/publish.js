@@ -9,10 +9,6 @@ const {
 } = adone;
 
 export default class extends Subsystem {
-    // onConfigure() {
-    //     this.nodejsManager = new nodejs.NodejsManager(kri.PACKAGER_CONFIG);
-    // }
-
     @command({
         name: "new",
         description: "Create new KRI release on GitHub",

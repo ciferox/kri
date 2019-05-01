@@ -59,7 +59,7 @@ class KRI extends app.Application {
         !is.windows && this.exitOnSignal("SIGINT");
 
         this.config = await kri.Configuration.load({
-            cwd: kri.HOME_PATH
+            cwd: kri.realm.getPath("etc")
         });
 
         // Define command groups.

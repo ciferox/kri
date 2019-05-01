@@ -11,6 +11,16 @@ const {
     writeBuffers
 } = binding;
 
+const templ = (template, data) => template.replace(/{(.*?)}/g, (_, key) => {
+    let result = data;
+
+    for (const property of key.split(".")) {
+        result = result ? result[property] : "";
+    }
+
+    return result || "";
+});
+
 class KRIInitSubsystem {
     constructor() {
         this.nfsBackup = {};
@@ -46,6 +56,22 @@ class KRIInitSubsystem {
 
             this.fs.mount(fs, volume.name);
             mountPoints.push(volume.name);
+        }
+
+        // add redirects
+        if (typeof __data__ !== "undefined" && Buffer.isBuffer(__data__)) {
+            const config = JSON.parse(__data__.toString("utf8"));
+
+            if (typeof config.fs.redirects === "object") {
+                const context = {
+                    kri: {
+                        home: path.join(require("os").homedir(), ".kri")
+                    }
+                };
+                for (const [from, to] of Object.entries(config.fs.redirects)) {
+                    this.fs.addRedirect(templ(from, context), templ(to, context));
+                }
+            }
         }
 
         this.isVirtual = (filename) => mountPoints.find((prefix) => filename.startsWith(prefix)) !== undefined;

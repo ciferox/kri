@@ -7,15 +7,17 @@ const {
     realm,
     path,
     stream: { MultiStream },
-    task
+    task,
+    util
 } = adone;
 
-export default class NodejsPackager extends task.TaskManager {
+export default class PackageManager extends task.TaskManager {
     constructor(options = {}) {
         super();
         this.log = options.log;
         this.options = options;
         this.kriConfig = options.kriConfig;
+        // this.verbose = Boolean(this.options.verbose);
     }
 
     async create() {
@@ -29,27 +31,17 @@ export default class NodejsPackager extends task.TaskManager {
     }
 
     async #initialize() {
-        if (this.options.input === "self") {
-            this.options.input = kri.ROOT_PATH;
-        }
-        this.options.input = path.resolve(this.options.input);
+        // Connecting to root realm.
+        await realm.rootRealm.connect();
 
-        // this.verbose = Boolean(this.options.verbose);
+        this.options.path = path.resolve(this.options.path);
+    
+        const { path: realmPath } = this.options;
 
-        const { input } = this.options;
-
-        const lstat = await fs.lstat(input);
-        if (lstat.isDirectory()) {
-            // Connecting to root realm.
-            await realm.rootRealm.connect();
-
-            // Check realm
-            this.inputRealm = new realm.RealmManager({
-                cwd: input
-            });
-
-            await this.inputRealm.connect();
-        }
+        this.inputRealm = new realm.RealmManager({
+            cwd: realmPath
+        });
+        await this.inputRealm.connect();
 
         // load tasks
         await this.loadTasksFrom(path.join(__dirname, "tasks"), {
@@ -69,6 +61,9 @@ export default class NodejsPackager extends task.TaskManager {
 
         const initCode = await this.runAndWait("buildInit")
         eofBuilder.addInit(initCode);
+        eofBuilder.addData(Buffer.from(JSON.stringify(util.pick(this.kriConfig.raw, [
+            "fs"
+        ]))));
 
         this.#saveToBuild({
             name: "init.js",
@@ -79,21 +74,14 @@ export default class NodejsPackager extends task.TaskManager {
             message: "preparing volumes"
         });
 
-        const volumes = [
-            {
-                type: "zip",
-                //mapping: "", // ???
-                input: this.inputRealm ? this.inputRealm : this.options.input,
-                startup: true
-            }
-        ];
+        const volumes = [];
 
-        for (const [name, { input, type, mapping }] of Object.entries(this.kriConfig.raw.volumes)) {
+        for (const [name, { input, type, mapping, startup }] of Object.entries(this.kriConfig.raw.volumes)) {
             volumes.push({
                 input,
                 type,
                 mapping,
-                startup: false
+                startup: Boolean(startup)
             });
         }
 
@@ -158,21 +146,21 @@ export default class NodejsPackager extends task.TaskManager {
         });
 
         let outName;
-        if (is.string(this.options.nane)) {
-            outName = this.options.nane;
+        if (is.string(this.options.name) && this.options.name.length > 0) {
+            outName = this.options.name;
         } else {
-            outName = path.basename(this.options.input, path.extname(this.options.input));
+            outName = path.basename(this.options.path);
         }
 
         const outPath = path.resolve(this.options.out, outName);
-        await fs.mkdirp(path.dirname(outPath));
+        await fs.mkdirp(this.options.out);
 
         await new Promise((resolve, reject) => {
             const ms = new MultiStream([
                 fs.createReadStream(this.options.nodeBinPath),
                 this.eof.toStream()
             ])
-                .pipe(fs.createWriteStream(path.resolve(this.options.out, outName)))
+                .pipe(fs.createWriteStream(outPath))
                 .on("error", reject)
                 .on("close", resolve);
         });
@@ -181,3 +169,4 @@ export default class NodejsPackager extends task.TaskManager {
         await fs.chmod(outPath, mode.toString(8).slice(-3));
     }
 }
+PackageManager.EOFBuilder = EOFBuilder;

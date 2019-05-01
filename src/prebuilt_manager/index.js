@@ -88,7 +88,7 @@ export default class PrebuiltManager extends task.TaskManager {
             })
         }
         if (!(await fs.exists(sourcesPath))) {
-            sourcesPath = await this.nodeManager.getCachePathFor(this.nodeManager.cache.download, { version, type });
+            sourcesPath = await this.nodeManager.getCachePathFor(this.nodeManager.cache.downloads, { version, type });
             if (fresh) {
                 await fs.remove(sourcesPath);
             }

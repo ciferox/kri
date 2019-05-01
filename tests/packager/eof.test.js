@@ -4,7 +4,7 @@ const {
     std: { path }
 } = adone;
 const {
-    packager: { EOFBuilder }
+    PackageManager: { EOFBuilder }
 } = kri;
 
 const readString = (buff, ctx) => {

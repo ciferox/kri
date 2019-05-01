@@ -11,11 +11,7 @@ adone.lazify({
     KRIConfiguration: "./kri_configuration",
     PrebuiltManager: "./prebuilt_manager",
     PackageManager: "./package_manager",
-    PACKAGER_CONFIG: () => ({
-        cache: {
-            basePath: adone.path.join(kri.HOME_PATH, "nodejs_cache")
-        }
-    })
+    realm: () => new adone.realm.RealmManager({ cwd: kri.ROOT_PATH })
 }, kri, require);
 
 Object.defineProperty(global, "kri", {

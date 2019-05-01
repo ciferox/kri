@@ -1,7 +1,9 @@
 export default (execPath, { result = false } = {}) => {
+    const LOADER_VERSION = 1;
+    const EOF_VERSION = 1;
+
     const EOF_SIG = Buffer.from("nodeadonekri");
     const EOF_HEADER_SIZE = 64;
-    const EOF_VERSION = 1;
     const MAX_VOLUMES = 64;
 
     const fs = require("fs");
@@ -43,15 +45,24 @@ export default (execPath, { result = false } = {}) => {
 
     let sectionHdrSize = commonHeader.readUInt32BE(16);
     let sectionSize = commonHeader.readUInt32BE(20);
-    const initSize = commonHeader.readUInt32BE(24);
 
+    // load 'init' section
+    const initSize = commonHeader.readUInt32BE(24);
     if (initSize === 0) {
         throw new Error("Empty 'init' section");
     }
-
     const init = Buffer.allocUnsafe(initSize);
     currentPos -= initSize;
     fs.readSync(fd, init, 0, initSize, currentPos);
+
+    // load 'data' section
+    const dataSize = commonHeader.readUInt32BE(28);
+    let data;
+    if (dataSize > 0) {
+        data = Buffer.allocUnsafe(dataSize);
+        currentPos -= dataSize;
+        fs.readSync(fd, data, 0, dataSize, currentPos);
+    }
 
     let i = 0;
     let startupFile = null;
@@ -83,7 +94,7 @@ export default (execPath, { result = false } = {}) => {
         if (!name.startsWith("/")) {
             throw new Error(`Invalid volume mount name: ${name}`);
         }
-        
+
         const type = readString(header, ctx);
         if (!type) {
             throw new Error(`No filesystem type for: ${name}`);
@@ -92,7 +103,7 @@ export default (execPath, { result = false } = {}) => {
         const mapping = readString(header, ctx);
 
         let index = readString(header, ctx);
-        
+
         if (index.length === 0) {
             index = "index.js";
         }
@@ -120,9 +131,17 @@ export default (execPath, { result = false } = {}) => {
         return volumes;
     }
 
+    global.__kri__.volumes = volumes;
+    global.__kri__.main = startupFile;
+    global.__kri__.EOF_VERSION = EOF_VERSION;
+    global.__kri__.LOADER_VERSION = LOADER_VERSION;
+
     const { Module } = require("module");
     const initId = "/__kri_init__/index.js";
     const m = new Module(initId, null);
     m._compile(init.toString("utf8"), initId);
     return m.exports(volumes, startupFile);
+
+    // const init = new Function("require", "__kri__", "data", initCode.toString("utf8"));
+    // init(require, global.__kri__, data);
 };

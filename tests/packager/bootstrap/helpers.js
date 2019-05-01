@@ -3,17 +3,21 @@ const {
     path: { join }
 } = adone;
 const {
-    packager: { EOFBuilder }
+    PackageManager: { EOFBuilder }
 } = kri;
 
 export const volumePath = (...args) => join(__dirname, "volumes", ...args);
 
 const DEFAULT_INIT = Buffer.alloc(12);
-export const getSimpleBuilder = async ({ init = DEFAULT_INIT, name = "app", type = "zip", mapping, index = "index.js" } = {}) => {
+export const getSimpleBuilder = async ({ init = DEFAULT_INIT, data, name = "app", type = "zip", mapping, index = "index.js" } = {}) => {
     const eofBuilder = new EOFBuilder();
     const volume = volumePath("app.zip");
 
     eofBuilder.addInit(init);
+
+    if (data) {
+        eofBuilder.addData(data);
+    }
 
     await eofBuilder.addVolume({
         type,

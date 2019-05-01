@@ -10,16 +10,18 @@ const {
 
 export default class extends Subsystem {
     onConfigure() {
-        this.nodejsManager = new nodejs.NodejsManager(kri.PACKAGER_CONFIG);
+        this.nodejsManager = new nodejs.NodejsManager({
+            realm: kri.realm
+        });
     }
 
     @mainCommand({
         arguments: [
             {
-                name: "input",
+                name: "path",
                 type: String,
                 required: true,
-                description: "Path to application script/realm or 'self' for self-packaging"
+                description: "Path to realm for packaging"
             }
         ],
         options: [
@@ -32,6 +34,7 @@ export default class extends Subsystem {
             {
                 name: ["--name", "-N"],
                 type: String,
+                default: null,
                 description: "Package output name (default: basename of the input file)"
             },
             {
@@ -57,10 +60,6 @@ export default class extends Subsystem {
             {
                 name: "--force-build",
                 description: "Force build"
-            },
-            {
-                name: "--whole-core",
-                description: "Embed whole core-realm"
             },
             {
                 name: "--verbose",
@@ -110,23 +109,22 @@ export default class extends Subsystem {
             const prebuiltManager = new kri.PrebuiltManager({
                 nodeManager: this.nodejsManager,
                 kriConfig,
+                fresh: opts.get("fresh"),
+                forceConfigure: opts.get("forceConfigure"),
+                forceBuild: opts.get("forceBuild"),
                 log
             });
 
             await prebuiltManager.initialize();
 
             const nodeBinPath = await prebuiltManager.get({
-                version,
-                fresh: opts.get("fresh"),
-                forceConfigure: opts.get("forceConfigure"),
-                forceBuild: opts.get("forceBuild")
+                version
             });
 
             const packageManager = new kri.PackageManager({
-                input: args.get("input"),
+                path: args.get("path"),
                 name: opts.get("name"),
                 out: opts.get("out"),
-                wholeCore: opts.get("wholeCore"),
                 kriConfig,
                 nodeBinPath,
                 log

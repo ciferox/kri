@@ -22,7 +22,9 @@ const IGNORE_FILES = ["LICENSE", "CHANGELOG.md", "README.md"];
 
 export default () => class NodeCommand extends Subsystem {
     onConfigure() {
-        this.nodejsManager = new nodejs.NodejsManager(kri.PACKAGER_CONFIG);
+        this.nodejsManager = new nodejs.NodejsManager({
+            realm: kri.realm
+        });
     }
 
     @command({
@@ -347,7 +349,7 @@ export default () => class NodeCommand extends Subsystem {
                     message: "copying new files"
                 });
 
-                await fs.copy(unpackedPath, prefixPath, {
+                await fs.copyEx(unpackedPath, prefixPath, {
                     filter: (src, item) => !IGNORE_FILES.includes(item)
                 });
 

@@ -7,7 +7,7 @@ const {
 } = adone;
 
 const {
-    packager: { EOFBuilder }
+    PackageManager: { EOFBuilder }
 } = kri;
 
 describe("packager", "bootstrap", "loader", () => {
