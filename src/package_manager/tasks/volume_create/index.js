@@ -4,12 +4,12 @@ const {
     fs: { readFile, tmpName, remove },
     realm,
     task: { IsomorphicTask, task },
-    std: { path }
+    path
 } = adone;
 
 @task("volumeCreate")
 export default class extends IsomorphicTask {
-    async main({ input, startup } = {}) {
+    async main({ input, startup, version, nodePath } = {}) {
         const tmpPath = await tmpName();
 
         let filename;
@@ -62,11 +62,10 @@ export default class extends IsomorphicTask {
             // create temp dev config
             await this.updateDevConfig(targetRealm.getPath());
 
-            // build realm
-            await targetRealm.connect({ transpile: true });
-            await targetRealm.runAndWait("build", {
-                realm: targetRealm
-            });
+            // build realm using bundled Node.js
+            const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.ROOT_PATH, targetRealm.cwd])
+            child.stderr.pipe(process.stderr);
+            await child;
 
             // remove 'tmp' dir
             await remove(targetRealm.getPath("tmp"));
@@ -121,7 +120,7 @@ export default class extends IsomorphicTask {
             config = new realm.DevConfiguration({
                 cwd
             });
-    
+
         }
         config.set("superRealm", realm.rootRealm.cwd);
         await config.save(realm.DevConfiguration.configName, { ext: ".json", space: "    " });

@@ -78,11 +78,11 @@ export default class PrebuiltManager extends task.TaskManager {
 
         let sourcesPath = await this.nodeManager.getCachePathFor(this.nodeManager.cache.sources, { version, type, ext: "" });
         if (fresh) {
-            this.log({
+            this.log && this.log({
                 message: `deleting old files ${style.focus("(--fresh mode)")}`
             })
             await fs.remove(sourcesPath);
-            this.log({
+            this.log && this.log({
                 message: `old files deleted ${style.focus("(--fresh mode)")}`,
                 status: true
             })
@@ -93,7 +93,7 @@ export default class PrebuiltManager extends task.TaskManager {
                 await fs.remove(sourcesPath);
             }
             if (!(await fs.exists(sourcesPath))) {
-                this.log({
+                this.log && this.log({
                     message: `downloading Node.js ${style.primary(version)}`
                 });
 
@@ -103,20 +103,20 @@ export default class PrebuiltManager extends task.TaskManager {
                     progressBar: true
                 });
 
-                this.log({
+                this.log && this.log({
                     message: `Node.js ${style.primary(version)} sources successfully downloaded`,
                     status: true
                 });
             }
 
-            this.log({
+            this.log && this.log({
                 message: "extracting Node.js sources"
             });
             sourcesPath = await this.nodeManager.extract({
                 version,
                 type
             });
-            this.log({
+            this.log && this.log({
                 message: "Node.js sources successfully extracted",
                 status: true
             });
@@ -136,7 +136,7 @@ export default class PrebuiltManager extends task.TaskManager {
     }
 
     async #patchNodejsSources() {
-        this.log({
+        this.log && this.log({
             message: "patching Node.js sources"
         });
 
@@ -172,7 +172,7 @@ export default class PrebuiltManager extends task.TaskManager {
             path: path.join(kri.ROOT_PATH, "lib", "assets", "loader.js")
         });
 
-        this.log({
+        this.log && this.log({
             message: "Node.js sources successfully patched",
             status: true
         });
@@ -185,11 +185,11 @@ export default class PrebuiltManager extends task.TaskManager {
 
         let reconfigured = false;
         const newConfigureArgs = useFlags(DEFAULT_CONFIGURE_FLAGS, this.kriConfig.raw.configure);
-        this.verbose && this.log({
+        this.log && this.log({
             stdout: `Node.js configure flags: ${style.accent(newConfigureArgs.join(" "))}`
         });
 
-        this.log({
+        this.log && this.log({
             message: "configuring Node.js build system"
         });
 
@@ -199,7 +199,7 @@ export default class PrebuiltManager extends task.TaskManager {
             });
 
             if (configureResult.code !== 0) {
-                this.log({
+                this.log && this.log({
                     stderr: configureResult.stderr
                 });
                 return;
@@ -211,25 +211,25 @@ export default class PrebuiltManager extends task.TaskManager {
             reconfigured = true;
         }
 
-        this.log({
+        this.log && this.log({
             message: "Node.js build system successfully configured",
             status: true
         });
 
         if (this.forceBuild || reconfigured || !(await fs.exists(path.join(this.nodejsBasePath, NODE_BIN_PATH)))) {
             const newMakeArgs = useFlags(DEFAULT_MAKE_FLAGS, this.kriConfig.raw.make);
-            this.verbose && this.log({
+            this.log && this.log({
                 stdout: `Node.js make flags: ${style.accent(newMakeArgs.join(" "))}`
             });
 
-            this.log({
+            this.log && this.log({
                 message: "building Node.js"
             });
 
             const buildResult = await compiler.build(newMakeArgs);
 
             if (buildResult.code !== 0) {
-                this.log({
+                this.log && this.log({
                     stderr: buildResult.stderr
                 });
                 return;
@@ -239,7 +239,7 @@ export default class PrebuiltManager extends task.TaskManager {
                 make: newMakeArgs
             });
 
-            this.log({
+            this.log && this.log({
                 message: "Node.js successfully builded",
                 status: true
             });

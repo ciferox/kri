@@ -122,6 +122,8 @@ export default class extends Subsystem {
             });
 
             const packageManager = new kri.PackageManager({
+                nodeManager: this.nodejsManager,
+                version,
                 path: args.get("path"),
                 name: opts.get("name"),
                 out: opts.get("out"),

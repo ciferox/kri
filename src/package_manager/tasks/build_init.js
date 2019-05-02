@@ -13,7 +13,7 @@ const {
 @task("buildInit")
 export default class extends IsomorphicTask {
     async main({ } = {}) {
-        this.manager.log({
+        this.manager.log && this.manager.log({
             message: "building 'init'"
         });
 
@@ -53,7 +53,7 @@ export default class extends IsomorphicTask {
             }
         });
 
-        this.manager.log({
+        this.manager.log && this.manager.log({
             message: "'init' successfully builded",
             status: true
         });

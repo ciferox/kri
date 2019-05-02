@@ -9,6 +9,8 @@ export default {
         // redirect kri realm dirs to real filesystem
         redirects: {
             "/kri/etc": "{kri.home}/etc",
+            "/kri/opt": "{kri.home}/opt",
+            "/kri/run": "{kri.home}/run",
             "/kri/tmp": "{kri.home}/tmp",
             "/kri/var": "{kri.home}/var"
         }

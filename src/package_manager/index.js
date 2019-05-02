@@ -21,7 +21,7 @@ export default class PackageManager extends task.TaskManager {
     }
 
     async create() {
-        this.log({
+        this.log && this.log({
             stdout: `KRI version: ${style.primary(kri.package.version)}`
         });
 
@@ -54,6 +54,22 @@ export default class PackageManager extends task.TaskManager {
         // delete previous build directory
         await fs.remove(this.buildPath);
         await fs.mkdirp(this.buildPath);
+
+        let basePath = path.join(
+                await this.options.nodeManager.getCachePath(this.options.nodeManager.cache.release),
+                await adone.nodejs.getArchiveName({ version: this.options.version, ext: "" })
+        );
+
+        if (!(await fs.pathExists(basePath))) {
+            // download realease for building target realms
+            await this.options.nodeManager.download({
+                version: this.options.version
+            });
+            basePath = await this.options.nodeManager.extract({
+                version: this.options.version
+            });
+        }
+        this.nodeRelPath = path.join(basePath, "bin", "node");
     }
 
     async #buildEof() {
@@ -70,7 +86,7 @@ export default class PackageManager extends task.TaskManager {
             data: initCode
         });
 
-        this.log({
+        this.log && this.log({
             message: "preparing volumes"
         });
 
@@ -87,12 +103,12 @@ export default class PackageManager extends task.TaskManager {
 
         await this.#addVolumes(eofBuilder, volumes);
 
-        this.log({
+        this.log && this.log({
             message: "volumes added",
             status: true
         });
 
-        this.log({
+        this.log && this.log({
             message: "building eof"
         });
 
@@ -105,7 +121,7 @@ export default class PackageManager extends task.TaskManager {
                 .on("close", resolve);
         });
 
-        this.log({
+        this.log && this.log({
             message: "eof successfully builded",
             status: true
         });
@@ -115,7 +131,9 @@ export default class PackageManager extends task.TaskManager {
         for (const { input, type, mapping, startup } of volumes) {
             const { name, filename, volume, index } = await this.runAndWait("volumeCreate", {
                 input,
-                startup
+                startup,
+                nodePath: this.nodeRelPath,
+                version: this.options.version
             });
 
             await eofBuilder.addVolume({
@@ -141,7 +159,7 @@ export default class PackageManager extends task.TaskManager {
     }
 
     async #profit() {
-        this.log({
+        this.log && this.log({
             message: "generating package"
         });
 

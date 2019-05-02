@@ -4,7 +4,7 @@ import "..";
 
 const {
     is,
-    std,
+    path,
     app
 } = adone;
 
@@ -12,7 +12,7 @@ const {
     subsystem
 } = app;
 
-const command = (...args) => std.path.join(__dirname, "..", "lib", "commands", ...args);
+const command = (...args) => path.join(__dirname, "..", "lib", "commands", ...args);
 
 @subsystem({
     subsystems: [
@@ -56,6 +56,33 @@ const command = (...args) => std.path.join(__dirname, "..", "lib", "commands", .
 })
 class KRI extends app.Application {
     async onConfigure() {
+        if (typeof global.__kri__ !== "undefined") {
+            // override requireAddon
+            const init = global.__kri__.initSubsystem;
+            // force call
+            adone.module.requireAddon("#");
+            adone.requireAddon("#");
+
+            adone.module.requireAddon = adone.requireAddon = (addonPath) => {
+                if (!path.isAbsolute(addonPath)) {
+                    throw Error("Path to addon should be absolute");
+                }
+                if (init.isVirtual(addonPath)) {
+                    const addonName = `${adone.std.crypto.createHash("sha1").update(`${addonPath}${kri.package.version}`).digest("hex")}.node`;
+                    const realPath = path.join(kri.HOME_PATH, "addons", addonName);
+                    try {
+                        return require(realPath);
+                    } catch (err) {
+                        adone.fs.mkdirpSync(path.dirname(realPath));
+                        adone.fs.copyFileSync(addonPath, realPath);
+                        return require(realPath);
+                    }
+                }
+
+                return require(addonPath);
+            };
+        }
+
         !is.windows && this.exitOnSignal("SIGINT");
 
         this.config = await kri.Configuration.load({

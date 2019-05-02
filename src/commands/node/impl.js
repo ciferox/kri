@@ -57,7 +57,7 @@ export default () => class NodeCommand extends Subsystem {
             const items = indexJson.filter((item) => options.all
                 ? true
                 : semver.satisfies(item.version.substr(1), adone.package.engines.node, false));
-            
+
             const currentVersion = await nodejs.getCurrentVersion();
 
             const downloadedVersions = await this.nodejsManager.getDownloadedVersions();
@@ -71,7 +71,7 @@ export default () => class NodeCommand extends Subsystem {
                 } else {
                     result = `${indent}${item.version}`;
                 }
-                
+
                 if (downloadedVersions.includes(item.version)) {
                     result = cachedStyle(result);
                 }
@@ -341,22 +341,54 @@ export default () => class NodeCommand extends Subsystem {
                 const unpackedPath = await this.nodejsManager.extract({ version });
 
                 cli.updateProgress({
-                    message: "deleting previous files"
+                    message: "deleting Node.js files"
                 });
-                await this.nodejsManager.deleteCurrent();
+                await this.nodejsManager.removeActive();
 
                 cli.updateProgress({
                     message: "copying new files"
                 });
-
                 await fs.copyEx(unpackedPath, prefixPath, {
-                    filter: (src, item) => !IGNORE_FILES.includes(item)
+                    filter: (src) => !IGNORE_FILES.includes(src)
                 });
-
-                await fs.remove(std.path.dirname(unpackedPath));
 
                 cli.updateProgress({
                     message: `Node.js ${style.primary(version)} successfully activated`,
+                    status: true
+                });
+            }
+
+            return 0;
+        } catch (err) {
+            cli.updateProgress({
+                message: err.message,
+                status: false
+            });
+            // console.log(pretty.error(err));
+            return 1;
+        }
+    }
+
+    @command({
+        name: ["deactivate", "del"],
+        description: "Dectivate/remove active Node.js",
+    })
+    async deactivate(args, opts) {
+        try {
+            const currentVersion = await nodejs.getCurrentVersion();
+
+            if (!currentVersion) {
+                cli.updateProgress({
+                    message: "Node.js not found",
+                    status: true
+                });
+            } else {
+                cli.updateProgress({
+                    message: "deleting Node.js files"
+                });
+                await this.nodejsManager.removeActive();
+                cli.updateProgress({
+                    message: `Node.js ${style.primary(currentVersion)} successfully removed`,
                     status: true
                 });
             }
