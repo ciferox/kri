@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
 import "..";
+import ADONEApp from "adone/lib/app/adone";
 
 const {
-    is,
+    cli: { chalk },
     path,
     app
 } = adone;
@@ -16,6 +17,18 @@ const command = (...args) => path.join(__dirname, "..", "lib", "commands", ...ar
 
 @subsystem({
     subsystems: [
+        {
+            name: "adone",
+            group: "common",
+            description: "ADONE toolkit",
+            subsystem: command("adone")
+        },
+        {
+            name: ["github", "gh"],
+            group: "common",
+            description: "GitHub tools",
+            subsystem: command("github")
+        },
         {
             name: "inspect",
             group: "common",
@@ -39,22 +52,10 @@ const command = (...args) => path.join(__dirname, "..", "lib", "commands", ...ar
             group: "common",
             description: "Realm management",
             subsystem: command("realm")
-        },
-        {
-            name: "repl",
-            group: "common",
-            description: "Async REPL",
-            subsystem: command("repl")
-        },
-        {
-            name: "run",
-            group: "common",
-            description: "Run application/script/code",
-            subsystem: command("run")
         }
     ]
 })
-class KRI extends app.Application {
+class KRIApp extends ADONEApp {
     async onConfigure() {
         if (typeof global.__kri__ !== "undefined") {
             // override requireAddon
@@ -68,7 +69,7 @@ class KRI extends app.Application {
                     throw Error("Path to addon should be absolute");
                 }
                 if (init.isVirtual(addonPath)) {
-                    const addonName = `${adone.std.crypto.createHash("sha1").update(`${addonPath}${kri.package.version}`).digest("hex")}.node`;
+                    const addonName = `${adone.std.crypto.createHash("sha1").update(`${addonPath}${kri.package.version}${adone.package.version}${process.version}`).digest("hex")}.node`;
                     const realPath = path.join(kri.HOME_PATH, "addons", addonName);
                     try {
                         return require(realPath);
@@ -83,41 +84,13 @@ class KRI extends app.Application {
             };
         }
 
-        !is.windows && this.exitOnSignal("SIGINT");
+        this.replBanner = `${chalk.bold.hex("ffeb3b")("KRI")} v${kri.package.version}, ${chalk.bold.hex("ab47bc")("ADONE")} v${adone.package.version}, ${chalk.bold.hex("689f63")("Node.JS")} ${process.version}`;
 
-        this.config = await kri.Configuration.load({
-            cwd: kri.realm.getPath("etc")
-        });
-
-        // Define command groups.
-        const groups = this.config.getGroups();
-        for (const group of groups) {
-            this.helper.defineCommandsGroup(group);
-        }
-
-        await this._addInstalledSubsystems();
-    }
-
-    async run() {
-        // print usage message by default
-        console.log(`${this.helper.getHelpMessage()}\n`);
-        return 0;
-    }
-
-    async _addInstalledSubsystems() {
-        const commands = this.config.getCommands();
-        for (const ss of commands) {
-            // eslint-disable-next-line
-            await this.helper.defineCommandFromSubsystem({
-                ...adone.util.omit(ss, "name"),
-                name: [ss.name, ...adone.util.arrify(ss.aliases)],
-                lazily: true
-            });
-        }
+        return super.onConfigure();
     }
 }
 
-app.run(KRI, {
+app.run(KRIApp, {
     useArgs: true,
     version: `KRI: v${kri.package.version}
 ADONE: v${adone.package.version}

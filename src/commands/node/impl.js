@@ -7,8 +7,7 @@ const {
     },
     nodejs,
     semver,
-    pretty,
-    std
+    pretty
 } = adone;
 const { chalk, style, chalkify } = cli;
 
@@ -29,7 +28,7 @@ export default () => class NodeCommand extends Subsystem {
 
     @command({
         name: ["list", "ls"],
-        description: "Display Node.js releases",
+        description: "Show Node.js releases",
         options: [
             {
                 name: ["--all", "-A"],

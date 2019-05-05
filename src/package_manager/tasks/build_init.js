@@ -19,7 +19,7 @@ export default class extends IsomorphicTask {
 
         const bundle = await rollup({
             onwarn: adone.noop,
-            input: join(kri.ROOT_PATH, "src", "assets", "init.js"),
+            input: join(kri.cwd, "src", "assets", "init.js"),
             plugins: [
                 babel({
                     plugins: [
@@ -29,7 +29,7 @@ export default class extends IsomorphicTask {
                 resolve({
                     preferBuiltins: true,
                     customResolveOptions: {
-                        basedir: adone.path.join(adone.ROOT_PATH, "src", "glosses", "fs", "custom")
+                        basedir: adone.path.join(adone.cwd, "src", "glosses", "fs", "custom")
                     }
                 }),
                 commonjs(),

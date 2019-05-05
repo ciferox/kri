@@ -4,11 +4,12 @@ const {
     is,
     cli: { style },
     fs,
-    nodejs: { NodejsCompiler },
+    nodejs,
     path,
     task,
     util
 } = adone;
+
 
 const DEFAULT_CONFIGURE_FLAGS = [
     `--dest-cpu=${process.arch}`
@@ -39,6 +40,8 @@ const useFlags = (defaults, ...customs) => {
     return [...result.values()];
 };
 
+const getPrebuildPath = async (version) => kri.getPath("var", "prebuilts", await nodejs.getArchiveName({ version, ext: "" }))
+
 export default class PrebuiltManager extends task.TaskManager {
     constructor({ nodeManager, kriConfig, log, forceConfigure, forceBuild } = {}) {
         super();
@@ -60,15 +63,21 @@ export default class PrebuiltManager extends task.TaskManager {
         this.version = version;
         this.fresh = fresh;
 
+        const prebuiltPath = await getPrebuildPath(version);
+        if (!fresh) {
+            if (await fs.isExecutable(prebuiltPath, { ignoreErrors: true })) {
+                return prebuiltPath;
+            }            
+        }
+
         await this.#prepareNodejsSources();
         await this.#patchNodejsSources();
         await this.#buildNodejs();
 
-        return path.join(this.nodejsBasePath, NODE_BIN_PATH);
-    }
+        await fs.mkdirp(path.dirname(prebuiltPath));
+        await fs.copyFile(path.join(this.nodejsBasePath, NODE_BIN_PATH), prebuiltPath);
 
-    publish() {
-
+        return prebuiltPath;
     }
 
     async #prepareNodejsSources() {
@@ -162,14 +171,14 @@ export default class PrebuiltManager extends task.TaskManager {
             to: [
                 "process._exiting = false;",
                 "",
-                await fs.readFile(path.join(kri.ROOT_PATH, "lib", "assets", "bootstrap.js"), "utf8")
+                await fs.readFile(path.join(kri.cwd, "lib", "assets", "bootstrap.js"), "utf8")
             ].join("\n"),
             once: true
         });
 
         await this.runAndWait("buildLoader", {
             cwd: this.nodejsBasePath,
-            path: path.join(kri.ROOT_PATH, "lib", "assets", "loader.js")
+            path: path.join(kri.cwd, "lib", "assets", "loader.js")
         });
 
         this.log && this.log({
@@ -179,7 +188,7 @@ export default class PrebuiltManager extends task.TaskManager {
     }
 
     async #buildNodejs() {
-        const compiler = new NodejsCompiler({
+        const compiler = new nodejs.NodejsCompiler({
             cwd: this.nodejsBasePath
         });
 

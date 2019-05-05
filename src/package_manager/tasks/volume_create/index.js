@@ -63,7 +63,7 @@ export default class extends IsomorphicTask {
             await this.updateDevConfig(targetRealm.getPath());
 
             // build realm using bundled Node.js
-            const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.ROOT_PATH, targetRealm.cwd])
+            const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.cwd, targetRealm.cwd])
             child.stderr.pipe(process.stderr);
             await child;
 

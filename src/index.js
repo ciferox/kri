@@ -1,8 +1,9 @@
 require("adone");
 
 const kri = {
-    ROOT_PATH: adone.std.path.join(__dirname, ".."),
-    HOME_PATH: adone.std.path.join(adone.system.env.home(), ".kri")
+    cwd: adone.path.join(__dirname, ".."),
+    getPath: (...args) => adone.path.join(kri.cwd, ...args),
+    HOME_PATH: adone.path.join(adone.system.env.home(), ".kri")
 };
 
 adone.lazify({
@@ -11,7 +12,7 @@ adone.lazify({
     KRIConfiguration: "./kri_configuration",
     PrebuiltManager: "./prebuilt_manager",
     PackageManager: "./package_manager",
-    realm: () => new adone.realm.RealmManager({ cwd: kri.ROOT_PATH })
+    realm: () => new adone.realm.RealmManager({ cwd: kri.cwd })
 }, kri, require);
 
 Object.defineProperty(global, "kri", {
