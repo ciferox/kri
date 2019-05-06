@@ -55,7 +55,7 @@ export default class extends IsomorphicTask {
                 realm: input,
                 name: input.name,
                 path: tmpPath,
-                artifactTags: kriConfig.realm ? kriConfig.realm.artifactTags : [],
+                tags: kriConfig.realm ? kriConfig.realm.artifactTags : [],
                 filter
             });
 

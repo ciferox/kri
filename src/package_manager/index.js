@@ -17,7 +17,6 @@ export default class PackageManager extends task.TaskManager {
         this.log = options.log;
         this.options = options;
         this.kriConfig = options.kriConfig;
-        // this.verbose = Boolean(this.options.verbose);
     }
 
     async create() {

@@ -40,7 +40,8 @@ const useFlags = (defaults, ...customs) => {
     return [...result.values()];
 };
 
-const getPrebuildPath = async (version) => kri.getPath("var", "prebuilts", await nodejs.getArchiveName({ version, ext: "" }))
+const getPrebuiltPath = async (version) => kri.getPath("var", "prebuilts", await nodejs.getArchiveName({ version, ext: "" }));
+const getPrebuiltUrl = async (version, loaderVersion, eofVersion) => `https://github.com/ciferox/kri/releases/download/v${loaderVersion}.${eofVersion}/${await nodejs.getArchiveName({ version, ext: "" })}`;
 
 export default class PrebuiltManager extends task.TaskManager {
     constructor({ nodeManager, kriConfig, log, forceConfigure, forceBuild } = {}) {
@@ -63,11 +64,35 @@ export default class PrebuiltManager extends task.TaskManager {
         this.version = version;
         this.fresh = fresh;
 
-        const prebuiltPath = await getPrebuildPath(version);
-        if (!fresh) {
+        const prebuiltPath = await getPrebuiltPath(version);
+        if (!fresh && !this.forceConfigure && !this.forceBuild) {
             if (await fs.isExecutable(prebuiltPath, { ignoreErrors: true })) {
                 return prebuiltPath;
-            }            
+            }
+
+            this.log && this.log({
+                message: `downloading prebuilt Node.js ${style.primary(version)}`
+            })
+
+            const prebuiltUrl = await getPrebuiltUrl(version, kri.package.versions.loader, kri.package.versions.eof);
+            const downloader = new adone.http.Downloader({
+                url: prebuiltUrl,
+                dest: prebuiltPath
+            });
+
+            try {
+                await downloader.download();
+                await adone.promise.delay(500);
+
+                this.log && this.log({
+                    message: `prebuilt Node.js ${style.primary(version)} successfully downloaded`,
+                    status: true
+                });
+
+                return prebuiltPath;
+            } catch (err) {
+                //
+            }
         }
 
         await this.#prepareNodejsSources();
@@ -96,12 +121,12 @@ export default class PrebuiltManager extends task.TaskManager {
                 status: true
             })
         }
-        if (!(await fs.exists(sourcesPath))) {
+        if (!(await fs.pathExists(sourcesPath))) {
             sourcesPath = await this.nodeManager.getCachePathFor(this.nodeManager.cache.downloads, { version, type });
             if (fresh) {
                 await fs.remove(sourcesPath);
             }
-            if (!(await fs.exists(sourcesPath))) {
+            if (!(await fs.pathExists(sourcesPath))) {
                 this.log && this.log({
                     message: `downloading Node.js ${style.primary(version)}`
                 });
@@ -225,7 +250,7 @@ export default class PrebuiltManager extends task.TaskManager {
             status: true
         });
 
-        if (this.forceBuild || reconfigured || !(await fs.exists(path.join(this.nodejsBasePath, NODE_BIN_PATH)))) {
+        if (this.forceBuild || reconfigured || !(await fs.pathExists(path.join(this.nodejsBasePath, NODE_BIN_PATH)))) {
             const newMakeArgs = useFlags(DEFAULT_MAKE_FLAGS, this.kriConfig.raw.make);
             this.log && this.log({
                 stdout: `Node.js make flags: ${style.accent(newMakeArgs.join(" "))}`
