@@ -4,10 +4,12 @@ import "..";
 import ADONEApp from "adone/lib/app/adone";
 
 const {
-    cli: { chalk },
+    cli,
+    is,
     path,
     app
 } = adone;
+const { chalk } = cli;
 
 const {
     subsystem

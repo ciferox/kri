@@ -84,6 +84,8 @@ export default class PrebuiltManager extends task.TaskManager {
                 await downloader.download();
                 await adone.promise.delay(500);
 
+                await fs.chmod(prebuiltPath, 0o755);
+
                 this.log && this.log({
                     message: `prebuilt Node.js ${style.primary(version)} successfully downloaded`,
                     status: true

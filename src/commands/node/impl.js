@@ -24,6 +24,8 @@ export default () => class NodeCommand extends Subsystem {
         this.nodejsManager = new nodejs.NodejsManager({
             realm: kri.realm
         });
+
+        this.log = this.root.log;
     }
 
     @command({
@@ -42,12 +44,12 @@ export default () => class NodeCommand extends Subsystem {
     })
     async list(args, opts) {
         try {
-            cli.updateProgress({
+            this.log({
                 message: `downloading ${style.accent("index.json")}`
             });
             const indexJson = await nodejs.getReleases();
 
-            cli.updateProgress({
+            this.log({
                 message: "checking cached versions"
             });
 
@@ -93,7 +95,7 @@ export default () => class NodeCommand extends Subsystem {
                 });
             }
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
                 clean: true,
                 status: true
@@ -112,7 +114,7 @@ export default () => class NodeCommand extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false,
                 // clean: true
@@ -171,13 +173,13 @@ export default () => class NodeCommand extends Subsystem {
     })
     async download(args, opts) {
         try {
-            cli.updateProgress({
+            this.log({
                 message: "checking version"
             });
 
             const version = await nodejs.checkVersion(args.get("version"));
 
-            cli.updateProgress({
+            this.log({
                 message: `downloading Node.js ${style.accent(version)}`
             });
 
@@ -188,12 +190,12 @@ export default () => class NodeCommand extends Subsystem {
             });
 
             if (result.downloaded) {
-                cli.updateProgress({
+                this.log({
                     message: `saved to ${style.accent(result.path)}`,
                     status: true
                 });
             } else {
-                cli.updateProgress({
+                this.log({
                     message: `already downloaded: ${style.accent(result.path)}`,
                     status: true
                 });
@@ -201,7 +203,7 @@ export default () => class NodeCommand extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false,
                 // clean: true
@@ -260,13 +262,13 @@ export default () => class NodeCommand extends Subsystem {
     })
     async extract(args, opts) {
         try {
-            cli.updateProgress({
+            this.log({
                 message: "checking version"
             });
 
             const version = await nodejs.checkVersion(args.get("version"));
 
-            cli.updateProgress({
+            this.log({
                 message: "extracting"
             });
 
@@ -275,14 +277,14 @@ export default () => class NodeCommand extends Subsystem {
                 ...opts.getAll()
             });
 
-            cli.updateProgress({
+            this.log({
                 message: `Extracted to ${style.accent(destPath)}`,
                 status: true
             });
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
             });
@@ -311,7 +313,7 @@ export default () => class NodeCommand extends Subsystem {
     })
     async activate(args, opts) {
         try {
-            cli.updateProgress({
+            this.log({
                 message: "checking version"
             });
 
@@ -320,12 +322,12 @@ export default () => class NodeCommand extends Subsystem {
             const prefixPath = await nodejs.getPrefixPath();
 
             if (version === currentVersion) {
-                cli.updateProgress({
+                this.log({
                     message: `Node.js ${style.primary(version)} is active`,
                     status: true
                 });
             } else {
-                cli.updateProgress({
+                this.log({
                     message: "waiting"
                 });
 
@@ -334,24 +336,24 @@ export default () => class NodeCommand extends Subsystem {
                     progressBar: true
                 });
 
-                cli.updateProgress({
+                this.log({
                     message: `unpacking ${style.accent(await nodejs.getArchiveName({ version }))}`
                 });
                 const unpackedPath = await this.nodejsManager.extract({ version });
 
-                cli.updateProgress({
+                this.log({
                     message: "deleting Node.js files"
                 });
                 await this.nodejsManager.removeActive();
 
-                cli.updateProgress({
+                this.log({
                     message: "copying new files"
                 });
                 await fs.copyEx(unpackedPath, prefixPath, {
                     filter: (src) => !IGNORE_FILES.includes(src)
                 });
 
-                cli.updateProgress({
+                this.log({
                     message: `Node.js ${style.primary(version)} successfully activated`,
                     status: true
                 });
@@ -359,7 +361,7 @@ export default () => class NodeCommand extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
             });
@@ -377,16 +379,16 @@ export default () => class NodeCommand extends Subsystem {
             const currentVersion = await nodejs.getCurrentVersion();
 
             if (!currentVersion) {
-                cli.updateProgress({
+                this.log({
                     message: "Node.js not found",
                     status: true
                 });
             } else {
-                cli.updateProgress({
+                this.log({
                     message: "deleting Node.js files"
                 });
                 await this.nodejsManager.removeActive();
-                cli.updateProgress({
+                this.log({
                     message: `Node.js ${style.primary(currentVersion)} successfully removed`,
                     status: true
                 });
@@ -394,7 +396,7 @@ export default () => class NodeCommand extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
             });

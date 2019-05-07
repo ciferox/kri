@@ -1,6 +1,5 @@
 const {
     cli,
-    is,
     app: {
         Subsystem,
         mainCommand
@@ -13,6 +12,8 @@ export default class PackageCommand extends Subsystem {
         this.nodejsManager = new nodejs.NodejsManager({
             realm: kri.realm
         });
+
+        this.log = this.root.log;
     }
 
     @mainCommand({
@@ -69,29 +70,12 @@ export default class PackageCommand extends Subsystem {
     })
     async create(args, opts) {
         try {
-            const log = (options) => {
-                if (options.stderr) {
-                    cli.updateProgress({
-                        status: false,
-                        clean: true
-                    });
-                    console.error(options.stderr);
-                } else if (options.stdout) {
-                    if (!is.undefined(options.status) && !is.undefined(options.clean)) {
-                        cli.updateProgress(options);
-                    }
-                    console.log(options.stdout);
-                } else {
-                    cli.updateProgress(options);
-                }
-            };
-
             const kriConfig = await kri.KRIConfiguration.load({
                 path: opts.get("config"),
                 cwd: process.cwd()
             });
 
-            log({
+            this.log({
                 message: "checking version"
             });
             const version = await nodejs.checkVersion(opts.get("version"));
@@ -100,7 +84,7 @@ export default class PackageCommand extends Subsystem {
                 throw new adone.error.NotSupportedException(`Node.js ${version} is not supported. Use version that satisfies ${cli.style.accent(kri.package.engines.node)}`);
             }
 
-            log({
+            this.log({
                 stdout: `Node.js version: ${cli.style.primary(version)}`,
                 status: true,
                 clean: true
@@ -112,7 +96,7 @@ export default class PackageCommand extends Subsystem {
                 fresh: opts.get("fresh"),
                 forceConfigure: opts.get("forceConfigure"),
                 forceBuild: opts.get("forceBuild"),
-                log
+                log: this.log
             });
 
             await prebuiltManager.initialize();
@@ -129,22 +113,19 @@ export default class PackageCommand extends Subsystem {
                 out: opts.get("out"),
                 kriConfig,
                 nodeBinPath,
-                log
+                log: this.log
             });
-            
+
             await packageManager.create();
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
-                status: true,
-                // clean: true
+                status: true
             });
-
-            // console.log(adone.inspect(result, { style: "color" }));
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false,
                 // clean: true

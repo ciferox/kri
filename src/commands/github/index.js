@@ -32,7 +32,4 @@ const subCommand = (...args) => adone.path.join(__dirname, "commands", ...args);
     ]
 })
 export default class GithubCommand extends Subsystem {
-    onConfigure() {
-    }
-
 }

@@ -29,6 +29,10 @@ const commonOptions = [
 ];
 
 export default class extends Subsystem {
+    onConfigure() {
+        this.log = this.root.log;
+    }
+
     @command({
         name: "createRelease",
         description: "Create a new release",
@@ -78,7 +82,7 @@ export default class extends Subsystem {
             const options = opts.getAll();
             const { repo } = this._getRepo(options);
 
-            cli.updateProgress({
+            this.log({
                 message: "processing"
             });
 
@@ -91,7 +95,7 @@ export default class extends Subsystem {
                 prerelease: options.prerelease
             });
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
                 status: true,
                 clean: true
@@ -101,7 +105,7 @@ export default class extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
                 // clean: true
@@ -129,20 +133,20 @@ export default class extends Subsystem {
             const options = opts.getAll();
             const { repo } = this._getRepo(options);
 
-            cli.updateProgress({
+            this.log({
                 message: "processing"
             });
 
             const result = await repo.deleteRelease(options.id);
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
                 status: true
             });
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
                 // clean: true
@@ -168,13 +172,13 @@ export default class extends Subsystem {
             const options = opts.getAll();
             const { repo } = this._getRepo(options);
 
-            cli.updateProgress({
+            this.log({
                 message: "processing"
             });
 
             const result = await repo.listReleases();
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
                 status: true,
                 clean: true
@@ -188,7 +192,7 @@ export default class extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
                 // clean: true
@@ -214,13 +218,13 @@ export default class extends Subsystem {
             const options = opts.getAll();
             const { repo } = this._getRepo(options);
 
-            cli.updateProgress({
+            this.log({
                 message: "processing"
             });
 
             const result = await repo.listProjects();
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
                 status: true,
                 clean: true
@@ -234,7 +238,7 @@ export default class extends Subsystem {
 
             return 0;
         } catch (err) {
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false
                 // clean: true
@@ -295,7 +299,7 @@ export default class extends Subsystem {
             // const fileName = adone.path.basename(filePath);
             const stats = await adone.fs.stat(filePath);
 
-            cli.updateProgress({
+            this.log({
                 message: "uploading"
             });
 
@@ -309,7 +313,7 @@ export default class extends Subsystem {
                 rejectUnauthorized: false
             });
 
-            cli.updateProgress({
+            this.log({
                 message: "done",
                 status: true,
                 clean: true
@@ -321,7 +325,7 @@ export default class extends Subsystem {
             if (bar) {
                 bar.destroy();
             }
-            cli.updateProgress({
+            this.log({
                 message: err.message,
                 status: false,
                 // clean: true
