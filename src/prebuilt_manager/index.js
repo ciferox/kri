@@ -41,7 +41,7 @@ const useFlags = (defaults, ...customs) => {
 };
 
 const getPrebuiltPath = async (version) => kri.getPath("var", "prebuilts", await nodejs.getArchiveName({ version, ext: "" }));
-const getPrebuiltUrl = async (version, loaderVersion, eofVersion) => `https://github.com/ciferox/kri/releases/download/v${loaderVersion}.${eofVersion}/${await nodejs.getArchiveName({ version, ext: "" })}`;
+const getPrebuiltUrl = async (version, loaderVersion, eofVersion) => `https://github.com/ciferox/kri/releases/download/loader-${loaderVersion}.${eofVersion}/${await nodejs.getArchiveName({ version, ext: "" })}`;
 
 export default class PrebuiltManager extends task.TaskManager {
     constructor({ nodeManager, kriConfig, log, forceConfigure, forceBuild } = {}) {

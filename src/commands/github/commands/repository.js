@@ -25,6 +25,16 @@ const commonOptions = [
         name: "--auth",
         type: String,
         description: "Auth value `username:password` or `token`"
+    },
+    {
+        name: "--api-base",
+        type: String,
+        default: "https://api.github.com",
+        description: "The base GitHub API url"
+    },
+    {
+        name: "--raw",
+        description: "Show raw result"
     }
 ];
 
@@ -68,40 +78,128 @@ export default class extends Subsystem {
             {
                 name: "--prerelease",
                 description: "Prerelease release"
-            },
-            {
-                name: "--api-base",
-                type: String,
-                default: "https://api.github.com",
-                description: "The base GitHub API url"
             }
         ]
     })
     async createRelease(args, opts) {
         try {
-            const options = opts.getAll();
-            const { repo } = this._getRepo(options);
+            const { owner, repo, auth, apiBase, raw, ...options } = opts.getAll();
 
             this.log({
                 message: "processing"
             });
 
-            const result = await repo.createRelease({
-                tag_name: options.tag,
-                name: options.name,
-                body: options.body,
-                target_commitish: options.targetCommitish,
-                draft: options.draft,
-                prerelease: options.prerelease
-            });
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+            const relInfo = await relManager.createRelease(options);
 
             this.log({
-                message: "done",
+                inspect: {
+                    value: relInfo,
+                    onlyProps: raw ? undefined : ["id", "tag_name", "name", "url", "assets_url", "html_url", "upload_url", "draft", "prerelease"]
+                },
                 status: true,
                 clean: true
             });
 
-            console.log(adone.pretty.json(adone.util.pick(result.data, ["id", "url", "assets_url", "html_url", "upload_url"])));
+            return 0;
+        } catch (err) {
+            this.log({
+                message: err.message,
+                status: false
+                // clean: true
+            });
+            // console.log(adone.pretty.error(err));
+            return 1;
+        }
+    }
+
+    @command({
+        name: "updateRelease",
+        description: "Edit a release",
+        options: [
+            ...commonOptions,
+            {
+                name: "--id",
+                type: String,
+                description: "Release id to be updated"
+            },
+            {
+                name: "--name",
+                type: String,
+                description: "The name of the release"
+            },
+            {
+                name: ["--tag", "-T"],
+                type: String,
+                description: "The name of the tag"
+            },
+            {
+                name: "--target-commitish",
+                type: String,
+                description: "Commitish value that determines where the Git tag is created from"
+            },
+            {
+                name: "--body",
+                type: String,
+                description: "Text describing the contents of the tag"
+            },
+            {
+                name: "--draft",
+                description: "Unpublished/draft release"
+            },
+            {
+                name: "--prerelease",
+                description: "Prerelease release"
+            }
+        ]
+    })
+    async updateRelease(args, opts) {
+        try {
+            const options = opts.getAll();
+            let { id } = options;
+            const { owner, repo, auth, apiBase, raw } = options;
+
+            if (!id && !options.tag) {
+                throw new adone.error.NotValidException("please specify release id or tag name");
+            }
+
+            this.log({
+                message: "processing"
+            });
+
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+
+            if (options.tag && !id) {
+                const targetRel = await relManager.getReleaseByTag(options.tag);
+                id = targetRel.id;
+            }
+
+            const props = {};
+            if (opts.has("name")) {
+                props.name = options.name;
+            }
+            if (opts.has("tag")) {
+                props.tag = options.tag;
+            }
+            if (opts.has("targetCommitish")) {
+                props.targetCommitish = options.targetCommitish;
+            }
+            if (opts.has("body")) {
+                props.body = options.body;
+            }
+            props.draft = options.draft;
+            props.prerelease = options.prerelease;
+
+            const relInfo = await relManager.updateRelease(id, props);
+
+            this.log({
+                inspect: {
+                    value: relInfo,
+                    onlyProps: raw ? undefined : ["id", "tag_name", "name", "url", "assets_url", "html_url", "upload_url", "draft", "prerelease"]
+                },
+                status: true,
+                clean: true
+            });
 
             return 0;
         } catch (err) {
@@ -123,24 +221,40 @@ export default class extends Subsystem {
             {
                 name: "--id",
                 type: String,
-                required: true,
                 description: "Release id to be deleted"
+            },
+            {
+                name: "--tag",
+                type: String,
+                description: "Tag associated with release"
             }
         ]
     })
     async deleteRelease(args, opts) {
         try {
             const options = opts.getAll();
-            const { repo } = this._getRepo(options);
+            let { id } = options;
+            const { owner, repo, auth, apiBase, tag } = options;
+
+            if (!id && !tag) {
+                throw new adone.error.NotValidException("please specify release id or tag name");
+            }
 
             this.log({
                 message: "processing"
             });
 
-            const result = await repo.deleteRelease(options.id);
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+
+            if (options.tag && !id) {
+                const targetRel = await relManager.getReleaseByTag(options.tag);
+                id = targetRel.id;
+            }
+
+            await relManager.deleteRelease(id);
 
             this.log({
-                message: "done",
+                message: `release ${cli.style.primary(id)} successfully deleted`,
                 status: true
             });
 
@@ -160,35 +274,30 @@ export default class extends Subsystem {
         name: "listReleases",
         description: "Get information about all releases",
         options: [
-            ...commonOptions,
-            {
-                name: "--raw",
-                description: "Show raw result"
-            }
+            ...commonOptions
         ]
     })
     async listReleases(args, opts) {
         try {
-            const options = opts.getAll();
-            const { repo } = this._getRepo(options);
+            const { owner, repo, auth, apiBase, raw } = opts.getAll();
 
             this.log({
                 message: "processing"
             });
 
-            const result = await repo.listReleases();
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+            const releases = await relManager.listReleases();
 
             this.log({
-                message: "done",
+                inspect: {
+                    value: releases,
+                    onlyProps: raw ?
+                        undefined :
+                        ["id", "url", "assets_url", "html_url", "upload_url", "tag_name", "name", "draft", "prerelease", "created_at", "target_commitish"]
+                },
                 status: true,
                 clean: true
             });
-
-            if (options.raw) {
-                console.log(adone.inspect(result.data, { style: "color", depth: 8 }));
-            } else {
-                console.log(adone.pretty.json(result.data.map((rel) => adone.util.pick(rel, ["id", "url", "assets_url", "html_url", "upload_url", "tag_name", "name", "draft", "prerelease", "created_at", "target_commitish"]))));
-            }
 
             return 0;
         } catch (err) {
@@ -203,38 +312,50 @@ export default class extends Subsystem {
     }
 
     @command({
-        name: "listProjects",
-        description: "Get information about all projects",
+        name: "listAssets",
+        description: "List assets for a release by id or tag",
         options: [
             ...commonOptions,
             {
-                name: "--raw",
-                description: "Show raw result"
+                name: "--id",
+                type: String,
+                description: "Release id"
+            },
+            {
+                name: "--tag",
+                type: String,
+                description: "Tag associated with release"
             }
         ]
     })
-    async listProjects(args, opts) {
+    async listAssets(args, opts) {
         try {
             const options = opts.getAll();
-            const { repo } = this._getRepo(options);
+            const { id, owner, repo, auth, apiBase, tag, raw } = options;
+
+            if (!id && !tag) {
+                throw new adone.error.NotValidException("please specify release id or tag name");
+            }
 
             this.log({
                 message: "processing"
             });
 
-            const result = await repo.listProjects();
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+            const result = await ((tag && !id)
+                ? relManager.listAssetsByTag(tag)
+                : relManager.listAssets(id));
 
             this.log({
-                message: "done",
+                inspect: {
+                    value: result,
+                    onlyProps: raw ?
+                        undefined :
+                        ["id", "url", "browser_download_url", "name", "size", "download_count", "created_at", "updated_at"]
+                },
                 status: true,
                 clean: true
             });
-
-            // if (options.raw) {
-            console.log(result.data);
-            // } else {
-            //     console.log(adone.pretty.json(result.data.map((rel) => adone.util.pick(rel, ["id", "url", "assets_url", "html_url", "tag_name", "name", "draft", "prerelease", "created_at", "target_commitish"]))));
-            // }
 
             return 0;
         } catch (err) {
@@ -251,14 +372,6 @@ export default class extends Subsystem {
     @command({
         name: "uploadAsset",
         description: "Upload a release asset",
-        arguments: [
-            {
-                name: "path",
-                type: String,
-                required: true,
-                description: "Path to file for upload"
-            }
-        ],
         options: [
             ...commonOptions,
             {
@@ -270,55 +383,42 @@ export default class extends Subsystem {
             {
                 name: ["--name", "-N"],
                 type: String,
-                required: true,
                 description: "The file name of the asset"
+            },
+            {
+                name: ["--path", "-P"],
+                type: String,
+                required: true,
+                description: "Path to file for upload"
             }
         ]
     })
     async uploadAsset(args, opts) {
         let bar;
         try {
-            const options = opts.getAll();
-            const { repo, token } = this._getRepo(options);
-
-            if (!token) {
-                throw new adone.error.NotValidException("Invalid auth token");
-            }
-
-            let result = await repo.listReleases();
-
-            const releaseInfo = result.data.find((rel) => rel.tag_name === options.tag);
-
-            if (is.undefined(releaseInfo)) {
-                throw new adone.error.NotFoundException(`Release for '${options.tag}' tag not found`);
-            }
-
-            const uploadUrl = `${releaseInfo.upload_url.replace(/({.+})$/, "")}?name=${options.name}`;
-
-            const filePath = adone.path.resolve(args.get("path"));
-            // const fileName = adone.path.basename(filePath);
-            const stats = await adone.fs.stat(filePath);
+            const { owner, repo, auth, apiBase, raw, tag, name, path } = opts.getAll();
 
             this.log({
                 message: "uploading"
             });
 
-            result = await adone.http.client.request.post(uploadUrl, adone.fs.createReadStream(filePath), {
-                maxContentLength: stats.size,
-                headers: {
-                    "Content-Type": "application/octet-stream",
-                    "Content-Length": stats.size,
-                    Authorization: `token ${token}`
-                },
-                rejectUnauthorized: false
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+            const result = await relManager.uploadAsset({
+                tag,
+                name,
+                path
             });
 
             this.log({
-                message: "done",
+                inspect: {
+                    value: result,
+                    onlyProps: raw ?
+                        undefined :
+                        ["id", "url", "browser_download_url", "name"]
+                },
                 status: true,
                 clean: true
             });
-            console.log(adone.pretty.json(adone.util.pick(result.data, ["id", "url", "browser_download_url"])));
 
             return 0;
         } catch (err) {
@@ -341,12 +441,6 @@ export default class extends Subsystem {
         options: [
             ...commonOptions,
             {
-                name: ["--tag", "-T"],
-                type: String,
-                required: true,
-                description: "The name of the tag"
-            },
-            {
                 name: "--id",
                 type: String,
                 required: true,
@@ -354,8 +448,34 @@ export default class extends Subsystem {
             }
         ]
     })
-    deleteAsset() {
-        // TODO
+    async deleteAsset(args, opts) {
+        try {
+            const options = opts.getAll();
+            let { id } = options;
+            const { owner, repo, auth, apiBase, id } = options;
+
+            this.log({
+                message: "processing"
+            });
+
+            const relManager = new github.GitHubReleaseManager({ owner, repo, auth, apiBase });
+            await relManager.deleteAsset(id);
+
+            this.log({
+                message: `asset ${cli.style.primary(id)} successfully deleted`,
+                status: true
+            });
+
+            return 0;
+        } catch (err) {
+            this.log({
+                message: err.message,
+                status: false
+                // clean: true
+            });
+            // console.log(adone.pretty.error(err));
+            return 1;
+        }
     }
 
     _getRepo(options) {
