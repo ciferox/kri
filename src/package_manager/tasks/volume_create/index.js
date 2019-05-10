@@ -7,6 +7,29 @@ const {
     path
 } = adone;
 
+const MANAGERS = ["pnpm", "yarn", "npm"];
+const installNpmModules = async ({ cwd } = {}) => {
+    let pkgName;
+    for (const name of MANAGERS) {
+        try {
+            // eslint-disable-next-line no-await-in-loop
+            await adone.fs.which(name);
+            pkgName = name;
+            break;
+        } catch (err) {
+            // try next
+        }
+    }
+
+    if (!is.string(pkgName)) {
+        throw new adone.error.NotFoundException(`No package manager found. Inslall one of: ${MANAGERS.join(", ")}`);
+    }
+
+    await adone.process.exec(pkgName, ["install"], {
+        cwd
+    });
+};
+
 @task("volumeCreate")
 export default class extends IsomorphicTask {
     async main({ input, startup, version, nodePath } = {}) {
@@ -62,6 +85,11 @@ export default class extends IsomorphicTask {
             // create temp dev config
             await this.updateDevConfig(targetRealm.getPath());
 
+            // install npm modules needed for building
+            await installNpmModules({
+                cwd: targetRealm.cwd
+            });
+
             // build realm using bundled Node.js
             const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.cwd, targetRealm.cwd])
             child.stderr.pipe(process.stderr);
@@ -72,6 +100,9 @@ export default class extends IsomorphicTask {
 
             // remove src dir
             await remove(targetRealm.getPath("src"));
+
+            // remove node_modules dir
+            await remove(targetRealm.getPath("node_modules"));
 
             await fast.src([
                 "**/*",
@@ -105,7 +136,7 @@ export default class extends IsomorphicTask {
 
         const volume = await readFile(path.join(tmpPath, filename));
 
-        await remove(tmpPath);
+        // await remove(tmpPath);
 
         return { name, filename, index, volume };
     }

@@ -7,19 +7,15 @@ import commonjs from 'rollup-plugin-commonjs';
 const {
     fs,
     task: { IsomorphicTask, task },
-    path: { join }
+    path: { join, basename }
 } = adone;
 
 @task("buildInit")
 export default class extends IsomorphicTask {
-    async main({ } = {}) {
-        this.manager.log && this.manager.log({
-            message: "building 'init'"
-        });
-
+    async main({ src, dst } = {}) {
         const bundle = await rollup({
             onwarn: adone.noop,
-            input: join(kri.cwd, "src", "assets", "init.js"),
+            input: join(this.manager.cwd, src),
             plugins: [
                 babel({
                     plugins: [
@@ -53,11 +49,6 @@ export default class extends IsomorphicTask {
             }
         });
 
-        this.manager.log && this.manager.log({
-            message: "'init' successfully builded",
-            status: true
-        });
-
-        return output[0].code;
+        return fs.writeFile(join(this.manager.cwd, dst, basename(src)), output[0].code, "utf8");
     }
 }

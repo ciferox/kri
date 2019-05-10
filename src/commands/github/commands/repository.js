@@ -451,7 +451,6 @@ export default class extends Subsystem {
     async deleteAsset(args, opts) {
         try {
             const options = opts.getAll();
-            let { id } = options;
             const { owner, repo, auth, apiBase, id } = options;
 
             this.log({
@@ -476,30 +475,5 @@ export default class extends Subsystem {
             // console.log(adone.pretty.error(err));
             return 1;
         }
-    }
-
-    _getRepo(options) {
-        let auth = (process.env.GITHUB_AUTH || options.auth).trim();
-        if (auth) {
-            if (auth.includes(":")) {
-                const parts = auth.split(":");
-                auth = {
-                    username: parts[0],
-                    password: parts[1]
-                };
-            } else {
-                auth = {
-                    token: auth
-                };
-            }
-        } else {
-            throw new adone.error.NotValidException("Provide auth using '--auth' option or through GITHUB_AUTH environment variable");
-        }
-
-        const fullname = `${options.owner}/${options.repo}`;
-        return {
-            repo: new github.Repository(fullname, auth, options.apiBase),
-            token: auth.token
-        };
     }
 }

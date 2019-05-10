@@ -21,6 +21,10 @@
         ]
     },
     "tasks": {
-        "basePath": "lib/tasks"
+        "basePath": "lib/tasks",
+        "altBasePath": "src/tasks",
+        "tags": {
+            "dev": "dev"
+        }
     }
 }

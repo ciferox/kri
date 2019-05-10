@@ -74,7 +74,7 @@ export default class PackageManager extends task.TaskManager {
     async #buildEof() {
         const eofBuilder = new EOFBuilder();
 
-        const initCode = await this.runAndWait("buildInit")
+        const initCode = await fs.readFile(kri.getPath("lib", "assets", "init.js"), "utf8");
         eofBuilder.addInit(initCode);
         eofBuilder.addData(Buffer.from(JSON.stringify(util.pick(this.kriConfig.raw, [
             "fs"

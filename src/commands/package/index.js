@@ -93,7 +93,6 @@ export default class PackageCommand extends Subsystem {
             const prebuiltManager = new kri.PrebuiltManager({
                 nodeManager: this.nodejsManager,
                 kriConfig,
-                fresh: opts.get("fresh"),
                 forceConfigure: opts.get("forceConfigure"),
                 forceBuild: opts.get("forceBuild"),
                 log: this.log
@@ -102,7 +101,8 @@ export default class PackageCommand extends Subsystem {
             await prebuiltManager.initialize();
 
             const nodeBinPath = await prebuiltManager.get({
-                version
+                version,
+                fresh: opts.get("fresh")
             });
 
             const packageManager = new kri.PackageManager({
