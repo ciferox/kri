@@ -1,10 +1,4 @@
 export default {
-    "realm": {
-        "artifactTags": [
-            "src",
-            "info"
-        ]
-    },
     "fs": {
         // redirect kri realm dirs to real filesystem
         redirects: {

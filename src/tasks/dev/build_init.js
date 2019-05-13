@@ -12,7 +12,7 @@ const {
 
 @task("buildInit")
 export default class extends IsomorphicTask {
-    async main({ src, dst } = {}) {
+    async main({ src, dst, save = true } = {}) {
         const bundle = await rollup({
             onwarn: adone.noop,
             input: join(this.manager.cwd, src),
@@ -49,6 +49,8 @@ export default class extends IsomorphicTask {
             }
         });
 
-        return fs.writeFile(join(this.manager.cwd, dst, basename(src)), output[0].code, "utf8");
+        return (save
+            ? fs.writeFile(join(this.manager.cwd, dst, basename(src)), output[0].code, "utf8")
+            : output[0].code);
     }
 }

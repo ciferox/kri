@@ -1,10 +1,11 @@
 {
     "artifacts": {
-        "share": [
-            "share"
-        ],
         "src": [
             "src"
+        ],
+        "release": [
+            "bin",
+            "lib"
         ],
         "configs": [
             ".eslintrc.js",

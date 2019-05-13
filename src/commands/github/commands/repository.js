@@ -378,7 +378,7 @@ export default class extends Subsystem {
                 name: ["--tag", "-T"],
                 type: String,
                 required: true,
-                description: "The name of the tag"
+                description: "The name of the release tag"
             },
             {
                 name: ["--name", "-N"],

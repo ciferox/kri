@@ -1,0 +1,82 @@
+{
+    "publish": {
+        "type": "github",
+        "apiBase": "https://api.github.com",
+        "owner": "ciferox",
+        "repo": "kri",
+        "artifacts": {
+            "dev": ["src", "info"],
+            "rel": ["release", "info"]
+        },
+        "filter": [
+            "!bin/kri.map",
+            "!.adone/kri.js",
+            "!.adone/dev.json"
+        ]
+    },
+    "defaultTask": "copy",
+    "nonWatchableTasks": [
+        "cmake"
+    ],
+    "units": {
+        "app": {
+            "description": "Application",
+            "task": "transpileExe",
+            "src": "src/kri",
+            "dst": "bin"
+        },
+        "common": {
+            "description": "Common sources at index location",
+            "src": [
+                "!src/kri.js",
+                "src/*.js"
+            ],
+            "dst": "lib",
+            "task": "transpile"
+        },
+        "assets": {
+            "description": "Assets",
+            "task": "copy",
+            "src": "src/assets/**/*",
+            "dst": "lib/assets",
+            "units": {
+                "init": {
+                    "description": "KRI init subsystem",
+                    "src": "src/assets/init.js",
+                    "dst": "lib/assets",
+                    "task": "buildInit"
+                }
+            }
+        },
+        "commands": {
+            "description": "Common CLI commands",
+            "task": "transpile",
+            "src": "src/commands/**/*.js",
+            "dst": "lib/commands"
+        },
+        "package_manager": {
+            "description": "Package maneger",
+            "task": "transpile",
+            "src": [
+                "src/package_manager/**/*.js",
+                "!src/package_manager/assets/**/*"
+            ],
+            "dst": "lib/package_manager"
+        },
+        "prebuilt_manager": {
+            "description": "Prebuilt manager",
+            "task": "transpile",
+            "src": [
+                "src/prebuilt_manager/**/*.js",
+                "!src/prebuilt_manager/assets/**/*"
+            ],
+            "dst": "lib/prebuilt_manager"
+        },
+        "tasks": {
+            "description": "Realm tasks",
+            "src": "src/tasks/**/*.js",
+            "dst": "lib/tasks",
+            "task": "transpile"
+        }
+    }
+}

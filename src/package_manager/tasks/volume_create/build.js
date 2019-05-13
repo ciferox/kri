@@ -6,9 +6,7 @@ const run = async () => {
             cwd: process.argv[3]
         });
         await targetRealm.connect({ transpile: true });
-        await targetRealm.runAndWait("build", {
-            realm: targetRealm
-        });
+        await targetRealm.runAndWait("build");
         process.exit(0);
     } catch (err) {
         console.log(err.stack);

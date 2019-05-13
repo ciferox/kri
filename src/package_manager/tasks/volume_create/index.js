@@ -7,27 +7,10 @@ const {
     path
 } = adone;
 
-const MANAGERS = ["pnpm", "yarn", "npm"];
-const installNpmModules = async ({ cwd } = {}) => {
-    let pkgName;
-    for (const name of MANAGERS) {
-        try {
-            // eslint-disable-next-line no-await-in-loop
-            await adone.fs.which(name);
-            pkgName = name;
-            break;
-        } catch (err) {
-            // try next
-        }
-    }
-
-    if (!is.string(pkgName)) {
-        throw new adone.error.NotFoundException(`No package manager found. Inslall one of: ${MANAGERS.join(", ")}`);
-    }
-
-    await adone.process.exec(pkgName, ["install"], {
-        cwd
-    });
+const getATags = (publishInfo, type) => {
+    return (!publishInfo || !publishInfo.artifacts)
+        ? null
+        : publishInfo.artifacts[type];
 };
 
 @task("volumeCreate")
@@ -42,75 +25,36 @@ export default class extends IsomorphicTask {
         if (is.realm(input)) {
             filename = `${input.name}.zip`;
 
-            // Ignore some dev files
-            const ignores = [
-                "kri"
-            ];
-
-            const basePath = path.join(input.cwd, ".adone");
-            const filenames = [];
-            for (const i of ignores) {
-                try {
-                    filenames.push(path.relative(basePath, adone.std.module._resolveFilename(path.join(basePath, i))));
-                } catch (err) {
-                    //
-                }
-            }
-
-            let filter;
-            if (filenames.length > 1) {
-                filter = `!.adone/{${filenames.join(",")}}`;
-            } else {
-                filter = `!.adone/${filenames.join(",")}`;
-            }
-
-            let kriConfig;
-            try {
-                kriConfig = adone.require(path.join(input.getPath(".adone", "kri")));
-                if (kriConfig.default) {
-                    kriConfig = kriConfig.default;
-                }
-            } catch (err) {
-                //
-            }
-
             const targetRealm = await realm.rootRealm.runAndWait("realmFork", {
                 realm: input,
                 name: input.name,
                 path: tmpPath,
-                tags: kriConfig.realm ? kriConfig.realm.artifactTags : [],
-                filter
+                tags: getATags(input.devConfig.raw.publish, "dev")
             });
 
-            // create temp dev config
-            await this.updateDevConfig(targetRealm.getPath());
-
-            // install npm modules needed for building
-            await installNpmModules({
-                cwd: targetRealm.cwd
-            });
+            if (!Boolean(targetRealm.devConfig.raw.publish.skipInstallNodeModules)) {
+                // install npm modules needed for building
+                await realm.rootRealm.runAndWait("installModules", {
+                    cwd: targetRealm.cwd
+                });
+            }
 
             // build realm using bundled Node.js
             const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.cwd, targetRealm.cwd])
             child.stderr.pipe(process.stderr);
             await child;
 
-            // remove 'tmp' dir
-            await remove(targetRealm.getPath("tmp"));
-
-            // remove src dir
-            await remove(targetRealm.getPath("src"));
-
-            // remove node_modules dir
-            await remove(targetRealm.getPath("node_modules"));
-
-            await fast.src([
-                "**/*",
-                "!**/*.js.map",
-                "!.adone/dev.json"
-            ], { cwd: targetRealm.cwd })
-                .pack("zip", filename)
-                .dest(tmpPath);
+            await realm.rootRealm.runAndWait("realmPack", {
+                type: ".zip",
+                name: input.name,
+                realm: targetRealm,
+                tags: getATags(targetRealm.devConfig.raw.publish, "rel"),
+                path: tmpPath,
+                filter: [
+                    "!**/*.js.map",
+                    ...(targetRealm.devConfig.raw.publish.filter || [])
+                ]
+            });
 
             name = targetRealm.name;
             if (startup) {
@@ -136,24 +80,8 @@ export default class extends IsomorphicTask {
 
         const volume = await readFile(path.join(tmpPath, filename));
 
-        // await remove(tmpPath);
+        await remove(tmpPath);
 
         return { name, filename, index, volume };
-    }
-
-    async updateDevConfig(cwd) {
-        let config;
-        try {
-            config = await realm.DevConfiguration.load({
-                cwd
-            });
-        } catch (err) {
-            config = new realm.DevConfiguration({
-                cwd
-            });
-
-        }
-        config.set("superRealm", realm.rootRealm.cwd);
-        await config.save(realm.DevConfiguration.configName, { ext: ".json", space: "    " });
     }
 }
