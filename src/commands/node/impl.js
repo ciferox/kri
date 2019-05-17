@@ -17,8 +17,6 @@ const inactiveStyle = chalkify("white", chalk);
 const bullet = `${adone.text.unicode.symbol.bullet} `;
 const indent = " ".repeat(bullet.length);
 
-const IGNORE_FILES = ["LICENSE", "CHANGELOG.md", "README.md"];
-
 export default () => class NodeCommand extends Subsystem {
     onConfigure() {
         this.nodejsManager = new nodejs.NodejsManager({
@@ -45,22 +43,16 @@ export default () => class NodeCommand extends Subsystem {
     async list(args, opts) {
         try {
             this.log({
-                message: `downloading ${style.accent("index.json")}`
+                message: "collecting release information"
             });
+
             const indexJson = await nodejs.getReleases();
-
-            this.log({
-                message: "checking cached versions"
-            });
-
             const options = opts.getAll();
-
             const items = indexJson.filter((item) => options.all
                 ? true
                 : semver.satisfies(item.version.substr(1), adone.package.engines.node, false));
 
             const currentVersion = await nodejs.getCurrentVersion();
-
             const downloadedVersions = await this.nodejsManager.getDownloadedVersions();
 
             const styledItem = (item) => {
@@ -127,15 +119,13 @@ export default () => class NodeCommand extends Subsystem {
     @command({
         name: ["download", "get"],
         description: "Download Node.js",
-        arguments: [
+        options: [
             {
-                name: "version",
+                name: ["--version", "-V"],
                 type: String,
                 default: "latest",
                 description: "Node.js version ('latest', 'latest-lts', '11.0.0', 'v10.15.3', ...)"
-            }
-        ],
-        options: [
+            },
             {
                 name: ["--type", "-T"],
                 description: "Distribution type",
@@ -173,20 +163,20 @@ export default () => class NodeCommand extends Subsystem {
     })
     async download(args, opts) {
         try {
+            const options = opts.getAll();
             this.log({
                 message: "checking version"
             });
 
-            const version = await nodejs.checkVersion(args.get("version"));
+            options.version = await nodejs.checkVersion(options.version);
 
             this.log({
-                message: `downloading Node.js ${style.accent(version)}`
+                message: `downloading Node.js ${style.accent(options.version)}`
             });
 
             const result = await this.nodejsManager.download({
-                version,
                 progressBar: true,
-                ...opts.getAll()
+                ...options
             });
 
             if (result.downloaded) {
@@ -216,15 +206,13 @@ export default () => class NodeCommand extends Subsystem {
     @command({
         name: "extract",
         description: "Extract cached Node.js",
-        arguments: [
+        options: [
             {
-                name: "version",
+                name: ["--version", "-V"],
                 type: String,
                 default: "latest",
                 description: "Node.js version ('latest', 'latest-lts', '11.0.0', 'v10.15.3', ...)"
-            }
-        ],
-        options: [
+            },
             {
                 name: ["--type", "-T"],
                 description: "Distribution type",
@@ -262,20 +250,18 @@ export default () => class NodeCommand extends Subsystem {
     })
     async extract(args, opts) {
         try {
+            const options = opts.getAll();
             this.log({
                 message: "checking version"
             });
 
-            const version = await nodejs.checkVersion(args.get("version"));
+            options.version = await nodejs.checkVersion(options.version);
 
             this.log({
                 message: "extracting"
             });
 
-            const destPath = await this.nodejsManager.extract({
-                version,
-                ...opts.getAll()
-            });
+            const destPath = await this.nodejsManager.extract(options);
 
             this.log({
                 message: `Extracted to ${style.accent(destPath)}`,
@@ -296,32 +282,39 @@ export default () => class NodeCommand extends Subsystem {
     @command({
         name: "activate",
         description: "Activate Node.js",
-        arguments: [
+        options: [
             {
-                name: "version",
+                name: ["--version", "-V"],
                 type: String,
                 default: "latest",
                 description: "Node.js version ('latest', 'latest-lts', '11.0.0', 'v10.15.3', ...)"
-            }
-        ],
-        options: [
+            },
             {
                 name: ["--force", "-F"],
-                description: "Force download"
+                description: "Force activate"
+            },
+            {
+                name: ["--skip-include", "-SI"],
+                description: "Skip copying node `include` directory"
+            },
+            {
+                name: ["--skip-lib", "-SL"],
+                description: "Skip copying node `lib` directory (i.e. without `npm`)"
             }
         ]
     })
     async activate(args, opts) {
         try {
+            const options = opts.getAll();
             this.log({
                 message: "checking version"
             });
 
-            const version = await nodejs.checkVersion(args.get("version"));
+            const version = await nodejs.checkVersion(options.version);
             const currentVersion = await nodejs.getCurrentVersion();
             const prefixPath = await nodejs.getPrefixPath();
 
-            if (version === currentVersion) {
+            if (version === currentVersion && !options.force) {
                 this.log({
                     message: `Node.js ${style.primary(version)} is active`,
                     status: true
@@ -333,7 +326,8 @@ export default () => class NodeCommand extends Subsystem {
 
                 await this.nodejsManager.download({
                     version,
-                    progressBar: true
+                    progressBar: true,
+                    // force: options.force
                 });
 
                 this.log({
@@ -349,8 +343,21 @@ export default () => class NodeCommand extends Subsystem {
                 this.log({
                     message: "copying new files"
                 });
+
+                const filter = [
+                    "!LICENSE",
+                    "!CHANGELOG.md",
+                    "!README.md"
+                ];
+                if (options.skipInclude) {
+                    filter.push("!include/**/*");
+                } 
+                if (options.skipLib) {
+                    filter.push("!lib/**/*", "!bin/npm", "!bin/npx");
+                }
+
                 await fs.copyEx(unpackedPath, prefixPath, {
-                    filter: (src) => !IGNORE_FILES.includes(src)
+                    filter
                 });
 
                 this.log({
@@ -372,7 +379,7 @@ export default () => class NodeCommand extends Subsystem {
 
     @command({
         name: ["deactivate", "del"],
-        description: "Dectivate/remove active Node.js",
+        description: "Dectivate/remove active Node.js"
     })
     async deactivate(args, opts) {
         try {
