@@ -156,7 +156,7 @@ export default class ADONEManager {
         return result;
     }
 
-    async extract({ outPath, version, nodeVersion, platform, arch, type = "release", ext } = {}) {
+    async extract({ outPath, version, nodeVersion, platform, arch, type = "release", ext, force = false } = {}) {
         version = await this.checkVersion(version);
         nodeVersion = await this.checkNodejsVersion(nodeVersion);
 
@@ -170,6 +170,10 @@ export default class ADONEManager {
             throw new error.NotExistsException(`Path '${fullPath}' is not exist`);
         }
         const fullDestPath = aPath.join(destPath, this.getArchiveName({ version, nodeVersion, platform, arch, type, ext: "" }));
+
+        if (force) {
+            await fs.remove(fullDestPath);
+        }
 
         if (!(await fs.pathExists(fullDestPath))) {
             await adone.fast.src(fullPath)

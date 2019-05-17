@@ -149,26 +149,31 @@ export default class ADONECommand extends Subsystem {
                 default: "adone",
                 description: "Global module name associated with spawned realm"
             },
-            // {
-            //     name: ["--bin-name", "-B"],
-            //     type: String,
-            //     default: "adone",
-            //     description: "Global executable name of ADONE cli"
-            // },
+            {
+                name: ["--global", "-G"],
+                type: String,
+                description: "Global executable name of ADONE cli"
+            },
             {
                 name: "--node-version",
                 type: String,
                 default: process.version.split(".")[0].slice(1),
                 description: "Node.js version"
+            },
+            {
+                name: "--fresh",
+                description: "Force download and extract"
             }
         ]
     })
     async spawn(args, opts) {
-        const { source, nodeVersion, path, dirName, moduleName } = opts.getAll();
+        const options = opts.getAll();
+        const { source, nodeVersion, path, dirName, moduleName } = options;
 
         const destPath = aPath.resolve(path, dirName);
 
         let canUndo = false;
+        let moduleLinkPath;
         try {
             if (await fs.pathExists(destPath)) {
                 throw new error.ExistsException(`Path '${destPath}' already exists`);
@@ -184,13 +189,17 @@ export default class ADONECommand extends Subsystem {
                 };
                 await this.adoneManager.download({
                     ...relInfo,
-                    progressBar: true
+                    progressBar: true,
+                    force: options.fresh
                 });
 
                 this.log({
                     message: "extracting files"
                 });
-                adoneSrcPath = await this.adoneManager.extract(relInfo);
+                adoneSrcPath = await this.adoneManager.extract({
+                    relInfo,
+                    force: options.fresh
+                });
             } else if (source === "kri") {
                 // extract bundled ADONE realm
 
@@ -207,11 +216,20 @@ export default class ADONECommand extends Subsystem {
                 junk: true
             });
 
-            const modulePath = aPath.join(adone.system.env.home(), ".node_modules", moduleName);
-            await this._createSymlink(destPath, modulePath);
+            moduleLinkPath = aPath.join(adone.system.env.home(), ".node_modules", moduleName);
+            await this._createSymlink(destPath, moduleLinkPath);
+
+
+            let message;
+            if (is.string(options.global) && options.global.trim().length > 0) {
+                await this._createSymlink(aPath.join(destPath, "bin", "adone"), aPath.join(aPath.dirname(process.execPath), options.global.trim()));
+                message = "done";
+            } else {
+                message = `note: to run ADONE/cli from anywhere add ${style.primary(aPath.join(destPath, "bin"))} to PATH variable\ndone`;
+            }
 
             this.log({
-                message: `note: to run ADONE/cli from anywhere add ${style.primary(aPath.join(destPath, "bin"))} to PATH variable\ndone`,
+                message,
                 status: true
             });
 
@@ -226,6 +244,9 @@ export default class ADONECommand extends Subsystem {
 
             if (canUndo) {
                 await fs.remove(destPath);
+                if (is.string(moduleLinkPath)) {
+                    await fs.unlink(moduleLinkPath);
+                }
             }
             return 1;
         }
