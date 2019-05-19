@@ -32,11 +32,17 @@ export default class extends IsomorphicTask {
                 tags: getATags(input.devConfig.raw.publish, "dev")
             });
 
-            if (!Boolean(targetRealm.devConfig.raw.publish.skipInstallNodeModules)) {
-                // install npm modules needed for building
-                await realm.rootRealm.runAndWait("installModules", {
+            const nodeModules = targetRealm.devConfig.raw.publish.nodeModules;
+            if (nodeModules) {
+                const options = {
                     cwd: targetRealm.cwd
-                });
+                };
+                if (is.object(nodeModules)) {
+                    options.modules = nodeModules;
+                }
+                options.dev = true;
+                // install npm modules needed for building
+                await realm.rootRealm.runAndWait("installModules", options);
             }
 
             // build realm using bundled Node.js

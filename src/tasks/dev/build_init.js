@@ -1,9 +1,3 @@
-import { rollup } from "rollup";
-import cleanup from "rollup-plugin-cleanup";
-import resolve from 'rollup-plugin-node-resolve';
-import babel from 'rollup-plugin-babel';
-import commonjs from 'rollup-plugin-commonjs';
-
 const {
     fs,
     task: { IsomorphicTask, task },
@@ -13,23 +7,23 @@ const {
 @task("buildInit")
 export default class extends IsomorphicTask {
     async main({ src, dst, save = true } = {}) {
-        const bundle = await rollup({
+        const bundle = await adone.rollup.rollup({
             onwarn: adone.noop,
             input: join(this.manager.cwd, src),
             plugins: [
-                babel({
+                adone.rollup.plugin.babel({
                     plugins: [
                         "@babel/plugin-proposal-class-properties"
                     ]
                 }),
-                resolve({
+                adone.rollup.plugin.resolve({
                     preferBuiltins: true,
                     customResolveOptions: {
                         basedir: adone.path.join(adone.cwd, "src", "glosses", "fs", "custom")
                     }
                 }),
-                commonjs(),
-                cleanup({
+                adone.rollup.plugin.commonjs(),
+                adone.rollup.plugin.cleanup({
                     comments: "none",
                     sourcemap: false,
                     extensions: ["js"]

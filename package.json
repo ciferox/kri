@@ -1,7 +1,7 @@
 {
   "name": "kri",
   "description": "Monadic form of ADONE",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "author": "Taaliman <smaxim@ciferox.com>",
   "license": "Apache-2.0",
   "homepage": "https://adone.io/",
@@ -26,11 +26,6 @@
     "eslint-plugin-adone": "latest",
     "eslint-plugin-babel": "latest",
     "eslint-plugin-flowtype": "latest",
-    "eslint-plugin-import": "latest",
-    "rollup": "latest",
-    "rollup-plugin-babel": "^4.3.2",
-    "rollup-plugin-cleanup": "latest",
-    "rollup-plugin-commonjs": "^9.3.4",
-    "rollup-plugin-node-resolve": "^4.2.3"
+    "eslint-plugin-import": "latest"
   }
 }
