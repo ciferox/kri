@@ -16,7 +16,7 @@ const getATags = (publishInfo, type) => {
 @task("volumeCreate")
 export default class extends IsomorphicTask {
     async main({ input, startup, version, nodePath } = {}) {
-        const tmpPath = await tmpName();
+        const tmpPath = this.tmpPath = await tmpName();
 
         let filename;
 
@@ -46,7 +46,9 @@ export default class extends IsomorphicTask {
             }
 
             // build realm using bundled Node.js
-            const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.cwd, targetRealm.cwd])
+            const child = adone.process.exec(nodePath, [path.join(__dirname, "build.js"), adone.cwd, targetRealm.cwd], {
+                cwd: targetRealm.cwd
+            })
             child.stderr.pipe(process.stderr);
             await child;
 
@@ -89,5 +91,9 @@ export default class extends IsomorphicTask {
         await remove(tmpPath);
 
         return { name, filename, index, volume };
+    }
+
+    async undo(err) {
+        is.string(this.tmpPath) && await remove(this.tmpPath);
     }
 }

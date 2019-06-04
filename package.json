@@ -1,7 +1,7 @@
 {
   "name": "kri",
   "description": "Monadic form of ADONE",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "author": "Taaliman <smaxim@ciferox.com>",
   "license": "Apache-2.0",
   "homepage": "https://adone.io/",

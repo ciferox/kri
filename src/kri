@@ -54,6 +54,12 @@ const command = (...args) => path.join(__dirname, "..", "lib", "commands", ...ar
             group: "common",
             description: "Realm management",
             subsystem: command("realm")
+        },
+        {
+            name: "self",
+            group: "common",
+            description: "Self management",
+            subsystem: command("self")
         }
     ]
 })
