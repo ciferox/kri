@@ -52,7 +52,29 @@
             "description": "Common CLI commands",
             "task": "transpile",
             "src": "src/commands/**/*.js",
-            "dst": "lib/commands"
+            "dst": "lib/commands",
+            "units": {
+                "dashboard": {
+                    "description": "Dashboard",
+                    "src": "src/commands/dashboard/**/*.js",
+                    "dst": "lib/commands/dashboard",
+                    "task": "transpile",
+                    "units": {
+                        "assets": {
+                            "description": "Dashboard assets",
+                            "task": "copy",
+                            "src": "src/commands/dashboard/assets/**/*",
+                            "dst": "lib/commands/dashboard/assets"
+                        },
+                        "www": {
+                            "description": "Dashboard client",
+                            "task": "copy",
+                            "src": "src/commands/dashboard/www/**/*",
+                            "dst": "lib/commands/dashboard/www"
+                        }
+                    }
+                }
+            }
         },
         "package_manager": {
             "description": "Package maneger",
@@ -76,6 +98,12 @@
             "description": "Realm tasks",
             "src": "src/tasks/**/*.js",
             "dst": "lib/tasks",
+            "task": "transpile"
+        },
+        "weres": {
+            "description": "Web rendering surface",
+            "src": "src/weres/**/*.js",
+            "dst": "lib/weres",
             "task": "transpile"
         }
     }

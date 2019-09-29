@@ -26,6 +26,12 @@ const command = (...args) => path.join(__dirname, "..", "lib", "commands", ...ar
             subsystem: command("adone")
         },
         {
+            name: "dashboard",
+            group: "common",
+            description: "KRI web dashboard",
+            subsystem: command("dashboard")
+        },
+        {
             name: ["github", "gh"],
             group: "common",
             description: "GitHub tools",

@@ -12,6 +12,7 @@ adone.lazify({
     KRIConfiguration: "./kri_configuration",
     PrebuiltManager: "./prebuilt_manager",
     PackageManager: "./package_manager",
+    weres: "./weres",
     realm: () => new adone.realm.RealmManager({ cwd: kri.cwd })
 }, kri, require);
 
