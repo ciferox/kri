@@ -14,7 +14,7 @@ const { chalk, style, chalkify } = cli;
 const activeStyle = chalkify("bold.underline", chalk);
 const cachedStyle = chalkify("#388E3C", chalk);
 const inactiveStyle = chalkify("white", chalk);
-const bullet = `${adone.text.unicode.symbol.bullet} `;
+const bullet = `${adone.text.unicode.symbol.nodejs} `;
 const indent = " ".repeat(bullet.length);
 
 export default () => class NodeCommand extends Subsystem {
@@ -46,14 +46,18 @@ export default () => class NodeCommand extends Subsystem {
                 message: "collecting release information"
             });
 
-            const indexJson = await nodejs.getReleases();
+            const indexJson = (await nodejs.getReleases()).map((item) => {
+                item.version = item.version.substr(1);
+                return item;
+            });
+            const latestVersion = indexJson[0].version;
             const options = opts.getAll();
             const items = indexJson.filter((item) => options.all
                 ? true
-                : semver.satisfies(item.version.substr(1), adone.package.engines.node, false));
+                : semver.satisfies(item.version, adone.package.engines.node, false));
 
-            const currentVersion = await nodejs.getCurrentVersion();
-            const downloadedVersions = await this.nodejsManager.getDownloadedVersions();
+            const currentVersion = (await nodejs.getCurrentVersion()).substr(1);
+            const downloadedVersions = (await this.nodejsManager.getDownloadedVersions()).map((ver) => ver.substr(1));
 
             const styledItem = (item) => {
                 let result = inactiveStyle(item.version);
@@ -74,7 +78,11 @@ export default () => class NodeCommand extends Subsystem {
             const model = [
                 {
                     id: "version",
-                    handle: (item) => `${styledItem(item)}${item.lts ? chalk.grey(" (LTS)") : ""}`
+                    handle: (item) => `${styledItem(item)}${item.lts
+                        ? chalk.grey(" (lts)")
+                        : item.version === latestVersion
+                            ? chalk.grey(" (latest)")
+                            : ""}`
                 }
             ];
 
@@ -280,7 +288,7 @@ export default () => class NodeCommand extends Subsystem {
     }
 
     @command({
-        name: "activate",
+        name: ["activate", "use"],
         description: "Activate Node.js",
         options: [
             {
@@ -300,6 +308,10 @@ export default () => class NodeCommand extends Subsystem {
             {
                 name: ["--skip-lib", "-SL"],
                 description: "Skip copying node `lib` directory (i.e. without `npm`)"
+            },
+            {
+                name: ["--global", "-g"],
+                description: "Install nodejs globally (need root permission)"
             }
         ]
     })
@@ -311,57 +323,75 @@ export default () => class NodeCommand extends Subsystem {
             });
 
             const version = await nodejs.checkVersion(options.version);
-            const currentVersion = await nodejs.getCurrentVersion();
-            const prefixPath = await nodejs.getPrefixPath();
+            this.log({
+                message: "waiting"
+            });
 
-            if (version === currentVersion && !options.force) {
+            let status = false;
+            await this.nodejsManager.download({
+                version,
+                progressBar: true,
+                // force: options.force
+            });
+
+            this.log({
+                message: `unpacking ${style.accent(await nodejs.getArchiveName({ version }))}`
+            });
+            const unpackedPath = await this.nodejsManager.extract({ version });
+
+            if (options.global) {
+                const currentVersion = await nodejs.getCurrentVersion({
+                    prefixPath: await nodejs.getPrefixPath({
+                        global: true
+                    })
+                });
+
+                if (version !== currentVersion) {
+                    this.log({
+                        message: "deleting Node.js files"
+                    });
+
+                    await adone.promise.delay(3000);
+                    await this.nodejsManager.removeActive({
+                        global: true
+                    });
+
+                    this.log({
+                        message: "copying new files"
+                    });
+
+                    const filter = [
+                        "!LICENSE",
+                        "!CHANGELOG.md",
+                        "!README.md"
+                    ];
+                    if (options.skipInclude) {
+                        filter.push("!include/**/*");
+                    }
+                    if (options.skipLib) {
+                        filter.push("!lib/**/*", "!bin/npm", "!bin/npx");
+                    }
+
+                    await fs.copyEx(unpackedPath, await nodejs.getPrefixPath({ global: true }), {
+                        filter
+                    });
+                    status = true;
+                }
+            } else {
+                const shellPath = await adone.system.info.shell();
+                const scriptPath = adone.path.join(__dirname, "scripts", `kri.${adone.path.basename(shellPath)}`);
+                const { stdout } = await adone.process.exec(shellPath, [scriptPath, "set", unpackedPath]);
+                status = stdout === "1";
+            }
+
+            if (status) {
                 this.log({
-                    message: `Node.js ${style.primary(version)} is active`,
+                    message: `Node.js ${style.primary(version)} successfully activated`,
                     status: true
                 });
             } else {
                 this.log({
-                    message: "waiting"
-                });
-
-                await this.nodejsManager.download({
-                    version,
-                    progressBar: true,
-                    // force: options.force
-                });
-
-                this.log({
-                    message: `unpacking ${style.accent(await nodejs.getArchiveName({ version }))}`
-                });
-                const unpackedPath = await this.nodejsManager.extract({ version });
-
-                this.log({
-                    message: "deleting Node.js files"
-                });
-                await this.nodejsManager.removeActive();
-
-                this.log({
-                    message: "copying new files"
-                });
-
-                const filter = [
-                    "!LICENSE",
-                    "!CHANGELOG.md",
-                    "!README.md"
-                ];
-                if (options.skipInclude) {
-                    filter.push("!include/**/*");
-                } 
-                if (options.skipLib) {
-                    filter.push("!lib/**/*", "!bin/npm", "!bin/npx");
-                }
-
-                await fs.copyEx(unpackedPath, prefixPath, {
-                    filter
-                });
-
-                this.log({
-                    message: `Node.js ${style.primary(version)} successfully activated`,
+                    message: `Node.js ${style.primary(version)} is already active`,
                     status: true
                 });
             }
@@ -378,25 +408,64 @@ export default () => class NodeCommand extends Subsystem {
     }
 
     @command({
-        name: ["deactivate", "del"],
-        description: "Dectivate/remove active Node.js"
+        name: ["deactivate", "del", "unuse"],
+        description: "Dectivate/remove active Node.js",
+        options: [
+            {
+                name: ["--global", "-g"],
+                description: "Install nodejs globally (need root permission)"
+            }
+        ]
     })
     async deactivate(args, opts) {
         try {
-            const currentVersion = await nodejs.getCurrentVersion();
+            const options = opts.getAll();
+            let currentVersion;
+            let status = false;
+            if (options.global) {
+                currentVersion = await nodejs.getCurrentVersion({
+                    prefixPath: await nodejs.getPrefixPath({
+                        global: true
+                    })
+                });
 
-            if (!currentVersion) {
+                if (!currentVersion) {
+                    this.log({
+                        schema: `${chalk.yellow("!")} Node.js not found`,
+                        status: true
+                    });
+                    return 0;
+                }
                 this.log({
-                    message: "Node.js not found",
+                    message: "deleting globally installed Node.js"
+                });
+                await this.nodejsManager.removeActive({
+                    global: true
+                });
+                status = true;
+            } else {
+                currentVersion = await nodejs.getCurrentVersion();
+                if (!currentVersion) {
+                    this.log({
+                        message: "Node.js not found",
+                        status: true
+                    });
+                    return 0;
+                }
+                const shellPath = await adone.system.info.shell();
+                const scriptPath = adone.path.join(__dirname, "scripts", `kri.${adone.path.basename(shellPath)}`);
+                const { stdout } = await adone.process.exec(shellPath, [scriptPath, "del", await this.nodejsManager.getCachePath("releases")]);
+                status = stdout === "1";
+            }
+
+            if (status) {
+                this.log({
+                    message: `Node.js ${style.primary(currentVersion)} successfully removed`,
                     status: true
                 });
             } else {
                 this.log({
-                    message: "deleting Node.js files"
-                });
-                await this.nodejsManager.removeActive();
-                this.log({
-                    message: `Node.js ${style.primary(currentVersion)} successfully removed`,
+                    schema: `${chalk.yellow("!")} No active Node.js version`,
                     status: true
                 });
             }

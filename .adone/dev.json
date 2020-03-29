@@ -73,6 +73,21 @@
                             "dst": "lib/commands/dashboard/www"
                         }
                     }
+                },
+                "node": {
+                    "description": "Node.JS management",
+                    "src": "src/commands/node/**/*.js",
+                    "dst": "lib/commands/node",
+                    "task": "transpile",
+                    "units": {
+                        "scripts": {
+                            "description": "Node.js management scripts",
+                            "task": "copy",
+                            "src": [
+                                "src/commands/node/scripts/**/*"],
+                            "dst": "lib/commands/node/scripts"
+                        }
+                    }
                 }
             }
         },
